@@ -296,13 +296,9 @@ def generate_combined_pdf(all_data, output_directory, dpi, resistance_types):
                         t.plot(ax=ax_spm)
                         t.plot_threshold_label(ax=ax_spm)
                         # This is inside the `generate_combined_pdf` function, within the loop iterating over pairs
-                        if any(p < 0.05 for p in t.p):
-                            # Plot p-values with numerical annotations for better visibility
-                            for j, p_value in enumerate(t.p):
-                                if p_value < 0.05:
-                                    # Get the y-coordinate of the significant region's lower bound
-                                    y_coord = min(t.z[j], t.zstar) - 0.1  # Adjust the 0.1 as needed to place below the curve
-                                    ax_spm.text(j, y_coord, f'p={p_value:.3f}', ha='center', va='top')  # Added va='top' to align from the top
+                        if any(p < 0.05 for p in t.p):  # Check if any p-value is significant
+                            t.plot_p_values(ax=ax_spm)
+
 
 
                         # Plot mean force curves with standard deviation and add numerical annotations
