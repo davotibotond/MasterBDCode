@@ -217,10 +217,10 @@ def spm_analysis_with_std_and_numbers(all_data, output_directory, dpi):
                     # Plot mean force curves with standard deviation and add numerical annotations
                     plt.subplot(2, 1, 2)
                     plt.title(f'Mean Force Curves with Standard Deviation - {exercise_name}')
-                    plt.plot(common_positions, data1_mean, label=f'{pair[0]} Mean')
-                    plt.fill_between(common_positions, data1_mean - data1_std, data1_mean + data1_std, alpha=0.2)
-                    plt.plot(common_positions, data2_mean, label=f'{pair[1]} Mean')
-                    plt.fill_between(common_positions, data2_mean - data2_std, data2_mean + data2_std, alpha=0.2)
+                    plt.plot(common_positions, data1_mean, label=f'{pair[0]} Mean', color=color_mapping[pair[0]])
+                    plt.fill_between(common_positions, data1_mean - data1_std, data1_mean + data1_std, alpha=0.2, color=color_mapping[pair[0]])
+                    plt.plot(common_positions, data2_mean, label=f'{pair[1]} Mean', color=color_mapping[pair[1]])
+                    plt.fill_between(common_positions, data2_mean - data2_std, data2_mean + data2_std, alpha=0.2, color=color_mapping[pair[1]])
                     
                     # Choose positions to annotate standard deviation
                     positions_to_annotate = [25, 50, 75]  # Example positions in percentage
