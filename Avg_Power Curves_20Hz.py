@@ -16,10 +16,18 @@ from scipy.interpolate import interp1d
 
 ### Input variables
 sampling_frequency = 200  # Hz
-data_directory = '/Users/botonddavoti/MasterPython/Data 2'
-output_directory = "/Users/botonddavoti/MasterPython/Avg Power Curves"
+data_directory = './data'  # Update with the actual path to your data
+output_directory = "./outputs/Power1"  # Update with your desired output path
 resistance_types = ['freeweight', 'keiser', 'quantum', 'norse']
 dpi = 100
+
+### Color mapping for different resistance modalities
+color_mapping = {
+    'freeweight': 'blue',
+    'keiser': 'orange',
+    'quantum': 'grey',
+    'norse': 'green'
+}
 
 ### Dictionary to map different terms to a unified terminology
 term_mapping = {
@@ -110,18 +118,28 @@ def interpolate_data(data_list):
     return interpolated_data_list
 
 # Function to plot average power curve for each resistance type on the same graph
+# Function to plot average power curve for each resistance type on the same graph
 def plot_average_power_curves(exercise_data, output_directory, exercises):
-    line_styles = ['-', '--', '-.', ':']
-    colors = ['b', 'g', 'r', 'c']  # Basic color choices, you can choose more complex colors
+    # Define the line styles for each resistance type
+    line_styles = {
+        'freeweight': '-',  # solid line for freeweight
+        'keiser': '--',     # dashed line for keiser
+        'quantum': '-.',    # dash-dot line for quantum
+        'norse': ':'       # dotted line for norse
+    }
 
     for exercise in exercises:
         fig, ax = plt.subplots(dpi=dpi)
-        for resistance_type, (style, color) in zip(exercise_data[exercise].keys(), zip(line_styles, colors)):
+        for resistance_type in exercise_data[exercise].keys():
             aggregated_data = interpolate_data(exercise_data[exercise][resistance_type])
             if not aggregated_data:
                 continue
             mean_power = np.mean([data['Power'] for data in aggregated_data], axis=0)
-            ax.plot(aggregated_data[0]['Normalized position'], mean_power, label=resistance_type, linestyle=style, color=color)
+            # Use the color mapping and line style for the resistance type
+            ax.plot(aggregated_data[0]['Normalized position'], mean_power, 
+                    label=resistance_type, 
+                    linestyle=line_styles[resistance_type], 
+                    color=color_mapping[resistance_type])
 
         ax.set_xlabel('Barbell position (%)')
         ax.set_ylabel("Average Power (W)")
