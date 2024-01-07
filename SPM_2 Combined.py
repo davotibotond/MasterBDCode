@@ -22,6 +22,14 @@ output_directory = "./outputs/SPM3"  # Update with your desired output path
 resistance_types = ['freeweight', 'keiser', 'quantum', 'norse']
 dpi = 100
 
+# Define color mapping for resistance types
+color_mapping = {
+    'freeweight': 'blue',
+    'keiser': 'orange',
+    'quantum': 'grey',
+    'norse': 'green'
+}
+
 ### Ensure the output directory exists
 if not os.path.exists(output_directory):
     os.makedirs(output_directory)
@@ -148,8 +156,8 @@ def generate_plots_with_std(all_data, output_directory, dpi):
         plt.figure(figsize=(10, 5), dpi=dpi)
         for resistance_type, resistance_data in exercise_data.items():
             avg_force, std_deviation = calculate_average_curve_and_std(resistance_data, common_positions)
-            plt.plot(common_positions, avg_force, label=f'{resistance_type} Mean')
-            plt.fill_between(common_positions, avg_force - std_deviation, avg_force + std_deviation, alpha=0.2, label=f'{resistance_type} Std Dev')
+            plt.plot(common_positions, avg_force, label=f'{resistance_type} Mean', color=color_mapping[resistance_type])
+            plt.fill_between(common_positions, avg_force - std_deviation, avg_force + std_deviation, alpha=0.2, color=color_mapping[resistance_type])
         plt.title(f'Mean Force Curves with Standard Deviation - {exercise_name}')
         plt.xlabel('Barbell Position (%)')
         plt.ylabel('Force (FP)')
@@ -300,10 +308,11 @@ def generate_combined_pdf(all_data, output_directory, dpi, resistance_types):
                         # Plot mean force curves with standard deviation and add numerical annotations
                         ax_mfc = axs[1, i]
                         ax_mfc.set_title(f'Mean Force {pair[0]} vs {pair[1]}')
-                        ax_mfc.plot(common_positions, data1_mean, label=f'{pair[0]} Mean')
-                        ax_mfc.fill_between(common_positions, data1_mean - data1_std, data1_mean + data1_std, alpha=0.2)
-                        ax_mfc.plot(common_positions, data2_mean, label=f'{pair[1]} Mean')
-                        ax_mfc.fill_between(common_positions, data2_mean - data2_std, data2_mean + data2_std, alpha=0.2)
+                        ax_mfc.plot(common_positions, data1_mean, label=f'{pair[0]} Mean', color=color_mapping[pair[0]])
+                        ax_mfc.fill_between(common_positions, data1_mean - data1_std, data1_mean + data1_std, alpha=0.2, color=color_mapping[pair[0]])
+                        ax_mfc.plot(common_positions, data2_mean, label=f'{pair[1]} Mean', color=color_mapping[pair[1]])
+                        ax_mfc.fill_between(common_positions, data2_mean - data2_std, data2_mean + data2_std, alpha=0.2, color=color_mapping[pair[1]])
+
                         
                         # Choose positions to annotate standard deviation
                         positions_to_annotate = [25, 50, 75]  # Example positions in percentage
