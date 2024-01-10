@@ -269,7 +269,7 @@ def generate_combined_pdf(all_data, output_directory, dpi, resistance_types):
                 ]
 
             for pairs in pairs_sets:
-                fig, axs = plt.subplots(2, 3, figsize=(11, 8.5), gridspec_kw={'height_ratios': [1.2, 1]}, dpi=dpi)
+                fig, axs = plt.subplots(2, 3, figsize=(11, 8.5), gridspec_kw={'height_ratios': [1.0, 0.5]}, dpi=dpi)
                 fig.suptitle(f"{exercise_name.capitalize()} Analysis - Page {pairs_sets.index(pairs) + 1}")
 
                 # Iterate over each pair and generate plots
