@@ -269,7 +269,7 @@ def generate_combined_pdf(all_data, output_directory, dpi, resistance_types):
                 ]
 
             for pairs in pairs_sets:
-                fig, axs = plt.subplots(2, 3, figsize=(11, 8.5), dpi=dpi)  # 2 rows and 3 columns
+                fig, axs = plt.subplots(2, 3, figsize=(11, 8.5), gridspec_kw={'height_ratios': [1.2, 1]}, dpi=dpi)
                 fig.suptitle(f"{exercise_name.capitalize()} Analysis - Page {pairs_sets.index(pairs) + 1}")
 
                 # Iterate over each pair and generate plots
@@ -291,7 +291,7 @@ def generate_combined_pdf(all_data, output_directory, dpi, resistance_types):
                         t = spm1d.stats.ttest2(data1, data2, equal_var=True).inference(alpha=0.05)
 
                         # Plot SPM t-test results
-                        ax_spm = axs[0, i]
+                        ax_spm = axs[1, i]
                         ax_spm.set_title(f'SPM {pair[0]} vs {pair[1]}')
                         t.plot(ax=ax_spm)
                         t.plot_threshold_label(ax=ax_spm)
@@ -302,7 +302,7 @@ def generate_combined_pdf(all_data, output_directory, dpi, resistance_types):
 
 
                         # Plot mean force curves with standard deviation and add numerical annotations
-                        ax_mfc = axs[1, i]
+                        ax_mfc = axs[0, i]
                         ax_mfc.set_title(f'Mean Force {pair[0]} vs {pair[1]}')
                         ax_mfc.plot(common_positions, data1_mean, label=f'{pair[0]} Mean', color=color_mapping[pair[0]])
                         ax_mfc.fill_between(common_positions, data1_mean - data1_std, data1_mean + data1_std, alpha=0.2, color=color_mapping[pair[0]])
