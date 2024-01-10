@@ -310,20 +310,14 @@ def generate_combined_pdf(all_data, output_directory, dpi, resistance_types):
                         ax_mfc.fill_between(common_positions, data2_mean - data2_std, data2_mean + data2_std, alpha=0.2, color=color_mapping[pair[1]])
 
                         
-                        # Choose positions to annotate standard deviation
-                        positions_to_annotate = [25, 50, 75]  # Example positions in percentage
-                        for pos in positions_to_annotate:
-                            idx = int(pos / 100 * len(common_positions))
-                            ax_mfc.annotate(f'±{data1_std[idx]:.2f}', 
-                                            xy=(common_positions[idx], data1_mean[idx]), 
-                                            textcoords="offset points", 
-                                            xytext=(0,10), 
-                                            ha='center')
-                            ax_mfc.annotate(f'±{data2_std[idx]:.2f}', 
-                                            xy=(common_positions[idx], data2_mean[idx]), 
-                                            textcoords="offset points", 
-                                            xytext=(0,-15), 
-                                            ha='center')
+                        # We have removed the annotations for standard deviation
+                        # Set y-axis limits based on the exercise name
+                        if exercise_name == 'squat':
+                            ax_mfc.set_ylim(750, 2900)
+                        elif exercise_name == 'bench':
+                            ax_mfc.set_ylim(150, 750)
+                        elif exercise_name == 'row':
+                            ax_mfc.set_ylim(100, 900)
 
                         ax_mfc.legend()
 
