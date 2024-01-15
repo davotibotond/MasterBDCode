@@ -149,6 +149,8 @@ def plot_average_power_curves(exercise_data, output_directory, exercises):
         pdf_path = os.path.join(output_directory, f"{exercise}_average_power_curve.pdf")
         with PdfPages(pdf_path) as pdf:
             pdf.savefig(fig)
+        # Disable gridlines
+        plt.grid(False)
         plt.close(fig)
 
 # Ensure the output directory exists
