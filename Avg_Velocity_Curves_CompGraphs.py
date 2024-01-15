@@ -15,10 +15,18 @@ from matplotlib.backends.backend_pdf import PdfPages
 
 ### Input variables
 sampling_frequency = 200  # Hz
-data_directory = '/Users/botonddavoti/MasterPython/Data'  # Update with the actual path to your data
-output_directory = "/Users/botonddavoti/MasterPython/Average Force Curves"  # Update with your desired output path
+data_directory = './data'  # Update with the actual path to your data
+output_directory = "./outputs/VelocityCurves"  # Update with your desired output path
 resistance_types = ['freeweight', 'keiser', 'quantum', 'norse']
 dpi = 100
+
+# Define color mapping for resistance types
+color_mapping = {
+    'freeweight': 'blue',
+    'keiser': 'orange',
+    'quantum': 'grey',
+    'norse': 'green'
+}
 
 ### Ensure the output directory exists
 if not os.path.exists(output_directory):
@@ -123,19 +131,20 @@ def calculate_average_velocity_curve(resistance_data, all_positions):
     avg_velocity = np.mean(all_velocities, axis=0)
     return avg_velocity
 
-# Generate and save the plots for velocity
 def generate_velocity_plots(all_data, output_directory, dpi):
     common_positions = np.linspace(0, 100, num=1000)  # Common set of positions for interpolation
     for exercise_name, exercise_data in all_data.items():
         plt.figure(figsize=(10, 5), dpi=dpi)
         for resistance_type, resistance_data in exercise_data.items():
             avg_velocity = calculate_average_velocity_curve(resistance_data, common_positions)
-            plt.plot(common_positions, avg_velocity, label=f'{resistance_type} Average')
-        plt.title(f'Average Velocity Curves - {exercise_name}')
+            # Use the color mapping for each resistance type
+            plt.plot(common_positions, avg_velocity, label=f'{resistance_type} Average', color=color_mapping[resistance_type])
+        plt.title(f'Velocity Curves - {exercise_name}')
         plt.xlabel('Barbell Position (%)')
         plt.ylabel('Velocity (m/s)')
         plt.legend()
-        plt.grid(True)
+        # Disable gridlines
+        plt.grid(False)
         plt.tight_layout()
         
         # Save the plot to a PDF
