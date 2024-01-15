@@ -8,10 +8,11 @@ Created on Wed Nov 15 16:51:14 2023
 
 import os
 import pandas as pd
-import numpy as np
 import matplotlib.pyplot as plt
-from scipy.interpolate import interp1d
 from matplotlib.backends.backend_pdf import PdfPages
+from scipy.signal import butter, filtfilt
+import numpy as np
+from scipy.interpolate import interp1d
 
 ### Input variables
 sampling_frequency = 200  # Hz
@@ -39,6 +40,14 @@ term_mapping = {
     'Stang force (FP)': 'Barbell force (FP)',
     # Add more mappings if there are more terms
 }
+
+# Butterworth Low-Pass Filter function
+def butter_lowpass_filter(data, cutoff, fs, order=5):
+    nyq = 0.5 * fs  # Nyquist Frequency
+    normal_cutoff = cutoff / nyq
+    b, a = butter(order, normal_cutoff, btype='low', analog=False)
+    y = filtfilt(b, a, data)
+    return y
 
 # Function to preprocess and select valid data
 def preprocess_and_select_data(df, term_mapping, sampling_frequency):
@@ -135,6 +144,7 @@ def generate_velocity_plots(all_data, output_directory, dpi):
     common_positions = np.linspace(0, 100, num=1000)  # Common set of positions for interpolation
     for exercise_name, exercise_data in all_data.items():
         plt.figure(figsize=(10, 5), dpi=dpi)
+    
         for resistance_type, resistance_data in exercise_data.items():
             avg_velocity = calculate_average_velocity_curve(resistance_data, common_positions)
             # Use the color mapping for each resistance type
