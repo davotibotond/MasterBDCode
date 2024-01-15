@@ -301,9 +301,9 @@ def generate_combined_pdf(all_data, output_directory, dpi, resistance_types):
 
 
 
-                        # Plot mean force curves with standard deviation and add numerical annotations
+                        # Plot mean force curves 
                         ax_mfc = axs[0, i]
-                        ax_mfc.set_title(f'Mean Force {pair[0]} vs {pair[1]}')
+                        ax_mfc.set_title(f'Force {pair[0]} vs {pair[1]}')
                         ax_mfc.plot(common_positions, data1_mean, label=f'{pair[0]} Mean', color=color_mapping[pair[0]])
                         ax_mfc.fill_between(common_positions, data1_mean - data1_std, data1_mean + data1_std, alpha=0.2, color=color_mapping[pair[0]])
                         ax_mfc.plot(common_positions, data2_mean, label=f'{pair[1]} Mean', color=color_mapping[pair[1]])
@@ -320,6 +320,10 @@ def generate_combined_pdf(all_data, output_directory, dpi, resistance_types):
                             ax_mfc.set_ylim(100, 900)
 
                         ax_mfc.legend()
+
+                        # Adding labels for x-axis and y-axis
+                        ax_mfc.set_xlabel('Barbell Position (%)')
+                        ax_mfc.set_ylabel('Force (N)')
 
                 # Adjust layout and save the figure
                 plt.tight_layout(rect=[0, 0.03, 1, 0.95])  # Adjust the rect parameter as needed
