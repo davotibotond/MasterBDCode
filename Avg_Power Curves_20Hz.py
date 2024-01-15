@@ -142,9 +142,9 @@ def plot_average_power_curves(exercise_data, output_directory, exercises):
                     color=color_mapping[resistance_type])
 
         ax.set_xlabel('Barbell position (%)')
-        ax.set_ylabel("Average Power (W)")
+        ax.set_ylabel("Power (W)")
         ax.legend()
-        ax.set_title(f"Average Power Curve - {exercise}")
+        ax.set_title(f"Power Curve - {exercise}")
 
         pdf_path = os.path.join(output_directory, f"{exercise}_average_power_curve.pdf")
         with PdfPages(pdf_path) as pdf:
