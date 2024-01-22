@@ -1,0 +1,111 @@
+import os
+import pandas as pd
+import numpy as np
+
+### Input variables
+sampling_frequency = 200  # Hz
+data_directory = './data'  # Update with the actual path to your data
+output_directory = "./outputs/peakforce"  # Update with your desired output path
+resistance_types = ['freeweight', 'keiser', 'quantum', 'norse']
+dpi = 100
+
+### Ensure the output directory exists
+if not os.path.exists(output_directory):
+    os.makedirs(output_directory)
+
+### Dictionary to map different terms to a unified terminology
+term_mapping = {
+    'Stang position': 'Barbell position',
+    'Stang velocity': 'Barbell velocity',
+    'Stang force (FP)': 'Barbell force (FP)',
+}
+
+# Function to preprocess and select valid data with specific handling for different exercises
+def preprocess_and_select_data(df, term_mapping, sampling_frequency, exercise_name):
+    df.rename(columns=term_mapping, inplace=True)
+
+    if exercise_name in ['squat', 'bench', 'row']:
+        df['Barbell force (FP)'] = df[['Gulv stor Newton', 'Gulv h Newton', 'Gulv v Newton']].sum(axis=1)
+    else:
+        pass  # Additional handling for other exercises if necessary
+
+    df.drop(['Gulv stor sway X', 'Gulv stor sway Y', 'Gulv h sway X', 'Gulv h sway Y', 'Gulv v sway X', 'Gulv v sway Y',
+             'Gulv stor Newton', 'Gulv h Newton', 'Gulv v Newton'], axis=1, inplace=True)
+
+    max_position = df['Barbell position'].max()
+    df['Barbell position'] = (df['Barbell position'] / max_position) * 100
+
+    Rep_velocity_cutoff = 0.015
+    Number_samples_cutoff1 = round(0.4 * sampling_frequency)
+    Number_samples_cutoff2 = round(0.0067 * sampling_frequency)
+
+    Rep_con_start = None
+    Rep_con_end = None
+
+    for i in range(len(df['timestamp']) - Number_samples_cutoff1 + 1):
+        if all(df.loc[i:i + Number_samples_cutoff1 - 1, 'Barbell velocity'] > Rep_velocity_cutoff):
+            Rep_con_start = i
+            break
+
+    if Rep_con_start is not None:
+        for i in range(Rep_con_start, len(df['timestamp']) - Number_samples_cutoff2 + 1):
+            if all(df.loc[i:i + Number_samples_cutoff2 - 1, 'Barbell velocity'] < Rep_velocity_cutoff):
+                Rep_con_end = i + Number_samples_cutoff2 - 1
+                break
+
+    if Rep_con_start is None or Rep_con_end is None:
+        print(f"Could not determine concentric phase for rep in file. Skipping this rep.")
+        return None
+
+    df_con_phase = df.iloc[Rep_con_start:Rep_con_end]
+    if df_con_phase['Barbell position'].max() <= 0.25:
+        print(f"Max position is not greater than 0.25m. Skipping this rep.")
+        return None
+
+    return df_con_phase
+
+def calculate_and_print_peak_forces(data_directory, term_mapping, sampling_frequency, resistance_types):
+    # Dictionary to store peak forces for each exercise_modality
+    peak_forces = {}
+
+    for subject_number in range(1, 16):  # Loop from subject_1 to subject_15
+        subject_folder = f'subject_{subject_number}'
+        subject_path = os.path.join(data_directory, subject_folder)
+        
+        if not os.path.isdir(subject_path):
+            print(f"Subject folder not found or has a different name: {subject_folder}")
+            continue
+
+        print(f"Processing Subject: {subject_folder}")
+        for exercise_folder in os.listdir(subject_path):
+            exercise_path = os.path.join(subject_path, exercise_folder)
+            if os.path.isdir(exercise_path):
+                exercise_name = exercise_folder.lower()
+                for resistance_type in resistance_types:
+                    resistance_path = os.path.join(exercise_path, resistance_type)
+                    if os.path.isdir(resistance_path):
+                        exercise_modality = f"{exercise_name}_{resistance_type}"
+                        if exercise_modality not in peak_forces:
+                            peak_forces[exercise_modality] = []
+
+                        for file_name in os.listdir(resistance_path):
+                            if file_name.endswith('.csv'):
+                                file_path = os.path.join(resistance_path, file_name)
+                                df = pd.read_csv(file_path, delimiter=';', decimal=",")
+                                df_con_phase = preprocess_and_select_data(df, term_mapping, sampling_frequency, exercise_name)
+                                if df_con_phase is not None:
+                                    peak_force = df_con_phase['Barbell force (FP)'].max()
+                                    peak_forces[exercise_modality].append(peak_force)
+                                    print(f"    File: {file_name}, Peak Force: {peak_force}")
+                                else:
+                                    print(f"    File: {file_name} skipped due to preprocessing criteria.")
+
+    # Calculate and print average peak forces for each exercise_modality
+    for exercise_modality, forces in peak_forces.items():
+        avg_peak_force = np.mean(forces) if forces else 0
+        print(f"Average Peak Force for {exercise_modality}: {avg_peak_force}")
+
+calculate_and_print_peak_forces(data_directory, term_mapping, sampling_frequency, resistance_types)
+
+
+
