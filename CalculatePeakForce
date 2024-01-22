@@ -85,6 +85,8 @@ def calculate_and_print_peak_forces(data_directory, term_mapping, sampling_frequ
                     resistance_path = os.path.join(exercise_path, resistance_type)
                     if os.path.isdir(resistance_path):
                         exercise_modality = f"{exercise_name}_{resistance_type}"
+                        print(f"  Exercise Modality: {exercise_modality}")
+                        
                         if exercise_modality not in peak_forces:
                             peak_forces[exercise_modality] = []
 
@@ -94,9 +96,14 @@ def calculate_and_print_peak_forces(data_directory, term_mapping, sampling_frequ
                                 df = pd.read_csv(file_path, delimiter=';', decimal=",")
                                 df_con_phase = preprocess_and_select_data(df, term_mapping, sampling_frequency, exercise_name)
                                 if df_con_phase is not None:
-                                    peak_force = df_con_phase['Barbell force (FP)'].max()
-                                    peak_forces[exercise_modality].append(peak_force)
-                                    print(f"    File: {file_name}, Peak Force: {peak_force}")
+                                    # Filter data for 0-10% barbell position
+                                    df_filtered = df_con_phase[df_con_phase['Barbell position'] <= 10]
+                                    if not df_filtered.empty:
+                                        peak_force = df_filtered['Barbell force (FP)'].max()
+                                        peak_forces[exercise_modality].append(peak_force)
+                                        print(f"    File: {file_name}, Peak Force: {peak_force}")
+                                    else:
+                                        print(f"    File: {file_name} has no data in 0-10% barbell position range.")
                                 else:
                                     print(f"    File: {file_name} skipped due to preprocessing criteria.")
 
@@ -106,6 +113,9 @@ def calculate_and_print_peak_forces(data_directory, term_mapping, sampling_frequ
         print(f"Average Peak Force for {exercise_modality}: {avg_peak_force}")
 
 calculate_and_print_peak_forces(data_directory, term_mapping, sampling_frequency, resistance_types)
+
+
+
 
 
 
