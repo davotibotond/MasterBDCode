@@ -250,6 +250,15 @@ def spm_analysis_with_std_and_numbers(all_data, output_directory, dpi):
 # Call the SPM analysis function
 spm_analysis_with_std_and_numbers(all_data, output_directory, dpi)
 
+def mark_lowest_position_in_range(mean_curve, positions, start_pct, end_pct):
+    start_idx = int(start_pct / 100 * len(positions))
+    end_idx = int(end_pct / 100 * len(positions))
+    segment = mean_curve[start_idx:end_idx]
+    min_idx = np.argmin(segment) + start_idx
+    min_value = mean_curve[min_idx]
+    min_position = positions[min_idx]
+    return min_value, min_position
+
 # Function to generate and save combined SPM analysis and mean force curve plots
 def generate_combined_pdf(all_data, output_directory, dpi, resistance_types):
     common_positions = np.linspace(0, 100, num=100)  # Define common positions for interpolation
@@ -309,7 +318,12 @@ def generate_combined_pdf(all_data, output_directory, dpi, resistance_types):
                         ax_mfc.plot(common_positions, data2_mean, label=f'{pair[1]} Mean', color=color_mapping[pair[1]])
                         ax_mfc.fill_between(common_positions, data2_mean - data2_std, data2_mean + data2_std, alpha=0.2, color=color_mapping[pair[1]])
 
-                        
+                        # Mark the lowest position in the 20-60% range for both curves
+                        min_value1, min_position1 = mark_lowest_position_in_range(data1_mean, common_positions, 20, 60)
+                        min_value2, min_position2 = mark_lowest_position_in_range(data2_mean, common_positions, 20, 60)
+                        ax_mfc.scatter(min_position1, min_value1, color='black')  # Mark on first curve
+                        ax_mfc.scatter(min_position2, min_value2, color='black')  # Mark on second curve
+
                         # We have removed the annotations for standard deviation
                         # Set y-axis limits based on the exercise name
                         if exercise_name == 'squat':
