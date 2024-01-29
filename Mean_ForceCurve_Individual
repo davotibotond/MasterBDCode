@@ -4,7 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 ### Input variables
-specific_subject = 'subject_1'  # Replace with the desired subject's folder name
+specific_subject = 'subject_15'  # Replace with the desired subject's folder name
 data_directory = './data'  # Update with the actual path to your data
 output_directory = "./outputs/mean_force_curves"  # Update with your desired output path
 resistance_types = ['freeweight', 'keiser', 'quantum', 'norse']
