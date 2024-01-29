@@ -120,7 +120,7 @@ for subject_folder in os.listdir(data_directory):
                     all_data[exercise_name] = exercise_data
 
 
-
+# Function to identify sticking regions in the exercises squat and bench press
 def mark_lowest_position_in_range(mean_curve, positions, start_pct, end_pct):
     start_idx = int(start_pct / 100 * len(positions))
     end_idx = int(end_pct / 100 * len(positions))
