@@ -29,6 +29,24 @@ term_mapping = {
     'Stang force (FP)': 'Barbell force (FP)',
 }
 
+data = {
+    "bench_freeweight": [633.01, 718.94, 948.19, 886.60, 1006.42, 401.56, 787.96, 768.40, 1039.21, 1113.01, 507.42, 320.94, 458.03, 867.64, 1135.05],
+    "bench_keiser": [443.62, 604.24, 728.72, 728.22, 789.55, 301.83, 639.71, 764.06, 897.54, 394.15, 283.39, 367.00, 671.06, 842.26],
+    "bench_quantum": [518.66, 590.94, 648.02, 730.12, 730.46, 296.17, 614.12, 678.23, 768.61, 853.13, 319.67, 267.87, 275.81, 573.30, 712.22],
+    "bench_norse": [127.29, 150.23, 194.83, 194.20, 135.64, 49.70, 154.83, 118.29, 165.15, 172.17, 96.69, 50.69, 52.77, 101.69, 99.27],
+    "squat_freeweight": [2028.10, 1957.68, 2314.73, 2428.96, 2367.99, 1432.17, 1950.79, 1714.43, 1884.96, 2189.64, 1452.54, 1233.43, 1395.99, 1983.37, 2470.45],
+    "squat_keiser": [1835.66, 1788.85, 1993.46, 2230.15, 2043.88, 1265.12, 1841.20, 1566.20, 1760.46, 2065.59, 1357.97, 1209.06, 1277.36, 1563.11, 2393.85],
+    "squat_quantum": [2028.42, 1904.75, 2117.35, 2256.07, 1782.53, 1371.18, 1897.00, 1731.87, 1808.56, 2135.55, 1368.64, 1174.69, 1513.56],
+    "row_freeweight": [535.36, 660.22, 606.86, 798.40, 760.05, 326.68, 783.20, 547.65, 642.89, 746.58, 439.30, 357.79, 438.32, 608.39, 1050.49],
+    "row_keiser": [454.03, 518.03, 636.18, 587.26, 540.46, 569.40, 487.69, 959.72, 370.53, 288.17, 312.42, 452.94, 853.25],
+    "row_quantum": [467.63, 472.06, 386.72, 478.58, 429.96, 273.51, 457.15, 337.18, 433.46, 554.15, 276.58, 259.16, 256.22, 455.65, 624.44],
+    "row_norse": [85.84, 163.61, 185.57, 189.27, 75.98, 19.40, 11.70, 1.47, 26.47, 21.50, 22.94, 14.89, 13.19, 231.75, 106.60]
+}
+
+# Calculating the average for each exercise modality
+average_peak_force = {modality: sum(values) / len(values) for modality, values in data.items()}
+
+
 # Function to preprocess and select valid data with specific handling for different exercises
 def preprocess_and_select_data(df, term_mapping, sampling_frequency, exercise_name):
     df.rename(columns=term_mapping, inplace=True)
@@ -104,3 +122,7 @@ for subject_num in range(1, 16):
         # Plotting the mean force curves for the current subject
         plot_mean_force_curves(mean_curves, output_directory, dpi)
 
+# Now outside the loop, print the average peak forces
+print("Average Peak Forces for Each Exercise Modality:")
+for modality, avg_force in average_peak_force.items():
+    print(f"{modality}: {avg_force:.2f} N")
