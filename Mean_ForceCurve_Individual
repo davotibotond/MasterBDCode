@@ -30,17 +30,17 @@ term_mapping = {
 }
 
 data = {
-    "bench_freeweight": [633.01, 718.94, 948.19, 886.60, 1006.42, 401.56, 787.96, 768.40, 1039.21, 1113.01, 507.42, 320.94, 458.03, 867.64, 1135.05],
-    "bench_keiser": [443.62, 604.24, 728.72, 728.22, 789.55, 301.83, 639.71, 764.06, 897.54, 394.15, 283.39, 367.00, 671.06, 842.26],
-    "bench_quantum": [518.66, 590.94, 648.02, 730.12, 730.46, 296.17, 614.12, 678.23, 768.61, 853.13, 319.67, 267.87, 275.81, 573.30, 712.22],
-    "bench_norse": [127.29, 150.23, 194.83, 194.20, 135.64, 49.70, 154.83, 118.29, 165.15, 172.17, 96.69, 50.69, 52.77, 101.69, 99.27],
-    "squat_freeweight": [2028.10, 1957.68, 2314.73, 2428.96, 2367.99, 1432.17, 1950.79, 1714.43, 1884.96, 2189.64, 1452.54, 1233.43, 1395.99, 1983.37, 2470.45],
-    "squat_keiser": [1835.66, 1788.85, 1993.46, 2230.15, 2043.88, 1265.12, 1841.20, 1566.20, 1760.46, 2065.59, 1357.97, 1209.06, 1277.36, 1563.11, 2393.85],
-    "squat_quantum": [2028.42, 1904.75, 2117.35, 2256.07, 1782.53, 1371.18, 1897.00, 1731.87, 1808.56, 2135.55, 1368.64, 1174.69, 1513.56],
-    "row_freeweight": [535.36, 660.22, 606.86, 798.40, 760.05, 326.68, 783.20, 547.65, 642.89, 746.58, 439.30, 357.79, 438.32, 608.39, 1050.49],
-    "row_keiser": [454.03, 518.03, 636.18, 587.26, 540.46, 569.40, 487.69, 959.72, 370.53, 288.17, 312.42, 452.94, 853.25],
-    "row_quantum": [467.63, 472.06, 386.72, 478.58, 429.96, 273.51, 457.15, 337.18, 433.46, 554.15, 276.58, 259.16, 256.22, 455.65, 624.44],
-    "row_norse": [85.84, 163.61, 185.57, 189.27, 75.98, 19.40, 11.70, 1.47, 26.47, 21.50, 22.94, 14.89, 13.19, 231.75, 106.60]
+    "bench_freeweight": [624.93, 794.32, 1290.78, 1001.00, 1063.47, 390.05, 898.23, 812.46, 1070.12, 1345.60, 685.66, 347.92, 625.10, 1057.55, 1401.23],
+    "bench_keiser": [618.10, 781.78, 853.68, 831.87, 831.35, 330.23, 744.45, 845.38, 1086.91, 552.94, 328.70, 454.45, 827.82, 1082.89],
+    "bench_quantum": [649.66, 769.31, 891.43, 868.83, 841.48, 331.21, 778.03, 829.10, 914.99, 1171.44, 525.64, 360.00, 397.53, 841.88, 1110.22],
+    "bench_norse": [388.10, 568.50, 394.65, 497.83, 388.22, 148.00, 407.15, 382.16, 415.28, 618.03, 286.58, 152.20, 197.43, 392.45, 329.49],
+    "squat_freeweight": [2284.35, 1958.74, 2447.50, 2486.67, 2579.60, 1413.17, 1972.31, 1797.20, 1941.11, 2315.08, 1518.06, 1280.96, 1493.89, 2032.30, 2704.75],
+    "squat_keiser": [2170.80, 1985.81, 2285.16, 2389.55, 2187.98, 1397.57, 1925.81, 1766.26, 1930.67, 2224.98, 1458.69, 1309.54, 1430.78, 1746.25, 2583.81],
+    "squat_quantum": [2238.31, 2102.26, 2351.26, 2291.55, 2015.22, 1440.61, 1999.72, 1868.46, 1983.16, 2310.90, 1467.97, 1315.56, 1627.94],
+    "row_freeweight": [749.73, 876.94, 1191.70, 1006.09, 1030.43, 457.33, 889.95, 815.09, 822.25, 1318.80, 658.02, 423.42, 555.70, 1028.33, 1543.59],
+    "row_keiser": [698.68, 793.74, 707.76, 838.51, 634.38, 698.72, 741.43, 578.55, 435.09, 463.29, 594.73, 735.41, 1190.70],
+    "row_quantum": [789.68, 936.13, 624.52, 1162.90, 868.53, 578.18, 949.13, 1308.60, 925.22, 1313.21, 544.54, 428.33, 609.47, 1283.35, 1750.66],
+    "row_norse": [253.43, 655.31, 607.80, 817.21, 488.89, 198.53, 429.20, 420.87, 455.99, 616.69, 309.50, 162.65, 267.79, 628.95, 944.05]
 }
 
 # Calculating the average for each exercise modality
@@ -50,16 +50,52 @@ average_peak_force = {modality: sum(values) / len(values) for modality, values i
 # Function to preprocess and select valid data with specific handling for different exercises
 def preprocess_and_select_data(df, term_mapping, sampling_frequency, exercise_name):
     df.rename(columns=term_mapping, inplace=True)
+
+    # Specific handling for "squat", "bench", and "row" exercises
     if exercise_name in ['squat', 'bench', 'row']:
         df['Barbell force (FP)'] = df[['Gulv stor Newton', 'Gulv h Newton', 'Gulv v Newton']].sum(axis=1)
     else:
-        pass  # Additional handling for other exercises if necessary
+        # Handle other exercises if needed
+        pass
     
     df.drop(['Gulv stor sway X', 'Gulv stor sway Y', 'Gulv h sway X', 'Gulv h sway Y', 'Gulv v sway X', 'Gulv v sway Y',
              'Gulv stor Newton', 'Gulv h Newton', 'Gulv v Newton'], axis=1, inplace=True)
+
+    # Normalize barbell position to percentage
     max_position = df['Barbell position'].max()
     df['Barbell position'] = (df['Barbell position'] / max_position) * 100
-    return df
+
+    # Define start and end of concentric phase using barbell velocity
+    Rep_velocity_cutoff = 0.015
+    Number_samples_cutoff1 = round(0.4 * sampling_frequency)
+    Number_samples_cutoff2 = round(0.0067 * sampling_frequency)
+
+    Rep_con_start = None
+    Rep_con_end = None
+
+    for i in range(len(df['timestamp']) - Number_samples_cutoff1 + 1):
+        if all(df.loc[i:i + Number_samples_cutoff1 - 1, 'Barbell velocity'] > Rep_velocity_cutoff):
+            Rep_con_start = i
+            break
+
+    if Rep_con_start is not None:
+        for i in range(Rep_con_start, len(df['timestamp']) - Number_samples_cutoff2 + 1):
+            if all(df.loc[i:i + Number_samples_cutoff2 - 1, 'Barbell velocity'] < Rep_velocity_cutoff):
+                Rep_con_end = i + Number_samples_cutoff2 - 1
+                break
+
+    if Rep_con_start is None or Rep_con_end is None:
+        print(f"Could not determine concentric phase for rep in file. Skipping this rep.")
+        return None  # Invalid rep, skip this one
+
+    df_con_phase = df.iloc[Rep_con_start:Rep_con_end]
+
+    if df_con_phase['Barbell position'].max() <= 0.25:
+        print(f"Max position is not greater than 0.25m. Skipping this rep.")
+        return None  # Skip this rep if max position is not greater than 0.25m
+
+    return df_con_phase
+
 
 # Function to calculate mean force curve and peak force in 0-10% range
 def calculate_mean_force_curve(data):
@@ -111,8 +147,9 @@ for subject_num in range(1, 16):
                             if file_name.endswith('.csv'):
                                 file_path = os.path.join(resistance_path, file_name)
                                 df = pd.read_csv(file_path, delimiter=';', decimal=",")
-                                df = preprocess_and_select_data(df, term_mapping, sampling_frequency, exercise_name)
-                                force_data.append(df['Barbell force (FP)'].values)
+                                processed_df = preprocess_and_select_data(df, term_mapping, sampling_frequency, exercise_name)
+                                if processed_df is not None:
+                                    force_data.append(processed_df['Barbell force (FP)'].values)
 
                         if force_data:
                             exercise_modality = f"{exercise_name}_{resistance_type}"
