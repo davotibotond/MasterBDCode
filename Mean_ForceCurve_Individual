@@ -4,9 +4,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 ### Input variables
-specific_subject = 'subject_15'  # Replace with the desired subject's folder name
 data_directory = './data'  # Update with the actual path to your data
-output_directory = "./outputs/mean_force_curves"  # Update with your desired output path
+output_directory = "./outputs/individual_force_0-10"  # Update with your desired output path
 resistance_types = ['freeweight', 'keiser', 'quantum', 'norse']
 sampling_frequency = 200  # Hz
 dpi = 100
@@ -71,31 +70,34 @@ def plot_mean_force_curves(mean_curves, output_directory, dpi):
         plt.savefig(os.path.join(output_directory, f"{specific_subject}_{exercise_modality}_mean_force_curve.png"))
         plt.close()
 
-# Main script
-mean_curves = {}
+# Loop over each subject
+for subject_num in range(1, 16):
+    specific_subject = f'subject_{subject_num}'
+    subject_path = os.path.join(data_directory, specific_subject)
 
-subject_path = os.path.join(data_directory, specific_subject)
-if os.path.isdir(subject_path):
-    for exercise_folder in os.listdir(subject_path):
-        exercise_path = os.path.join(subject_path, exercise_folder)
-        if os.path.isdir(exercise_path):
-            exercise_name = exercise_folder.lower()
-            for resistance_type in resistance_types:
-                resistance_path = os.path.join(exercise_path, resistance_type)
-                if os.path.isdir(resistance_path):
-                    force_data = []
-                    for file_name in os.listdir(resistance_path):
-                        if file_name.endswith('.csv'):
-                            file_path = os.path.join(resistance_path, file_name)
-                            df = pd.read_csv(file_path, delimiter=';', decimal=",")
-                            df = preprocess_and_select_data(df, term_mapping, sampling_frequency, exercise_name)
-                            force_data.append(df['Barbell force (FP)'].values)
+    mean_curves = {}
 
-                    if force_data:
-                        exercise_modality = f"{exercise_name}_{resistance_type}"
-                        positions, mean_curve, peak_force_0_10 = calculate_mean_force_curve(force_data)
-                        mean_curves[exercise_modality] = (positions, mean_curve, peak_force_0_10)
+    if os.path.isdir(subject_path):
+        for exercise_folder in os.listdir(subject_path):
+            exercise_path = os.path.join(subject_path, exercise_folder)
+            if os.path.isdir(exercise_path):
+                exercise_name = exercise_folder.lower()
+                for resistance_type in resistance_types:
+                    resistance_path = os.path.join(exercise_path, resistance_type)
+                    if os.path.isdir(resistance_path):
+                        force_data = []
+                        for file_name in os.listdir(resistance_path):
+                            if file_name.endswith('.csv'):
+                                file_path = os.path.join(resistance_path, file_name)
+                                df = pd.read_csv(file_path, delimiter=';', decimal=",")
+                                df = preprocess_and_select_data(df, term_mapping, sampling_frequency, exercise_name)
+                                force_data.append(df['Barbell force (FP)'].values)
 
-# Plotting the mean force curves
-plot_mean_force_curves(mean_curves, output_directory, dpi)
+                        if force_data:
+                            exercise_modality = f"{exercise_name}_{resistance_type}"
+                            positions, mean_curve, peak_force_0_10 = calculate_mean_force_curve(force_data)
+                            mean_curves[exercise_modality] = (positions, mean_curve, peak_force_0_10)
+
+        # Plotting the mean force curves for the current subject
+        plot_mean_force_curves(mean_curves, output_directory, dpi)
 
