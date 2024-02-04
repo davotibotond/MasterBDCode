@@ -51,7 +51,6 @@ def calculate_mean_force_curve(data):
     peak_force_0_10 = np.max(mean_curve[common_positions <= 10])
     return common_positions, mean_curve, peak_force_0_10
 
-# Function to plot mean force curves for each exercise modality
 def plot_mean_force_curves(mean_curves, output_directory, dpi):
     for exercise_modality, (positions, curve, peak_force_0_10) in mean_curves.items():
         plt.figure(figsize=(10, 6), dpi=dpi)
@@ -62,6 +61,9 @@ def plot_mean_force_curves(mean_curves, output_directory, dpi):
         plt.scatter(peak_position, peak_force_0_10, color='red', label=f'Peak Force (0-10%): {peak_force_0_10:.2f} N')
         plt.annotate(f'{peak_force_0_10:.2f} N', (peak_position, peak_force_0_10), textcoords="offset points", xytext=(10,-10), ha='center')
 
+        # Print the peak force value in the terminal
+        print(f"Peak Force for {specific_subject} - {exercise_modality}: {peak_force_0_10:.2f} N")
+
         plt.title(f"Mean Force Curve for {specific_subject} - {exercise_modality}")
         plt.xlabel('Barbell Position (%)')
         plt.ylabel('Force (N)')
@@ -69,6 +71,7 @@ def plot_mean_force_curves(mean_curves, output_directory, dpi):
         plt.grid(True)
         plt.savefig(os.path.join(output_directory, f"{specific_subject}_{exercise_modality}_mean_force_curve.png"))
         plt.close()
+
 
 # Loop over each subject
 for subject_num in range(1, 16):
