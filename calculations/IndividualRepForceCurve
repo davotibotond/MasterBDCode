@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
+import numpy as np
 
 ### Input variables
 data_directory = './data'  # Update with the actual path to your data
@@ -162,3 +163,65 @@ for subject_num in range(1, 16):
                         if rep_data:
                             exercise_modality = f"{exercise_name}_{resistance_type}"
                             plot_rep_force_curves(rep_data, output_directory, dpi, exercise_modality, specific_subject)
+
+
+# Function to calculate mean force curve and peak force in 0-10% range
+def calculate_mean_force_curve(force_data):
+    # Define common positions for interpolation (100 points for 0-100%)
+    common_positions = np.linspace(0, 100, num=100)
+    # Interpolate all force data to the common positions
+    interpolated_data = [np.interp(common_positions, np.linspace(0, 100, len(d)), d) for d in force_data]
+    mean_curve = np.mean(interpolated_data, axis=0)
+    return common_positions, mean_curve
+
+# New function to generate PDFs
+def generate_exercise_pdf(all_data, output_directory, dpi):
+    # Create a PDF for each exercise
+    for exercise in ['squat', 'bench', 'row']:
+        # Initialize a dictionary to hold all data for the current exercise
+        exercise_data = {modality: [] for modality in resistance_types}
+        
+        # Aggregate data for the current exercise across all subjects and modalities
+        for subject_num in range(1, 16):
+            specific_subject = f'subject_{subject_num}'
+            subject_path = os.path.join(data_directory, specific_subject)
+            if os.path.isdir(subject_path):
+                exercise_path = os.path.join(subject_path, exercise)
+                if os.path.isdir(exercise_path):
+                    for resistance_type in resistance_types:
+                        resistance_path = os.path.join(exercise_path, resistance_type)
+                        if os.path.isdir(resistance_path):
+                            for file_name in os.listdir(resistance_path):
+                                if file_name.endswith('.csv'):
+                                    file_path = os.path.join(resistance_path, file_name)
+                                    df = pd.read_csv(file_path, delimiter=';', decimal=",")
+                                    processed_df = preprocess_and_select_data(df, term_mapping, sampling_frequency, exercise)
+                                    if processed_df is not None:
+                                        exercise_data[resistance_type].append(processed_df['Barbell force (FP)'].values)
+        
+        # Plot the mean force curve for each modality in a single graph
+        pdf_filename = f"{exercise}_mean_force_curves.pdf"
+        pdf_path = os.path.join(output_directory, pdf_filename)
+        with PdfPages(pdf_path) as pdf:
+            plt.figure(figsize=(10, 6), dpi=dpi)
+            for modality, force_data in exercise_data.items():
+                if force_data:
+                    common_positions, mean_curve = calculate_mean_force_curve(force_data)
+                    plt.plot(common_positions, mean_curve, label=modality, color=color_mapping[modality])
+                    
+                    # Mark the peak force in 0-10% range
+                    peak_position, peak_force_0_10 = calculate_peak_force_0_10(mean_curve, common_positions)
+                    plt.scatter(peak_position, peak_force_0_10, color='red')
+                    plt.annotate(f'{peak_force_0_10:.2f} N', (peak_position, peak_force_0_10), textcoords="offset points", xytext=(10,-10), ha='center')
+
+            plt.title(f"Mean Force Curve across all subjects - {exercise}")
+            plt.xlabel('Barbell Position (%)')
+            plt.ylabel('Force (N)')
+            plt.legend()
+            plt.grid(True)
+            pdf.savefig()  # saves the current figure into a pdf page
+            plt.close()
+
+# Call the new function to generate the PDFs
+all_data = {}  # This will contain all the force data for each subject
+generate_exercise_pdf(all_data, output_directory, dpi)
