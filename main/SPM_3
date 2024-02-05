@@ -1,0 +1,200 @@
+"""
+Created on Thu Dec 21 15:16:39 2023
+
+@author: botonddavoti
+"""
+
+import os
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.interpolate import interp1d
+from matplotlib.backends.backend_pdf import PdfPages
+import spm1d
+import itertools
+
+### Input variables
+sampling_frequency = 200  # Hz
+data_directory = './data'  # Update with the actual path to your data
+output_directory = "./outputs/SPM Analysis"  # Update with your desired output path
+resistance_types = ['freeweight', 'keiser', 'quantum', 'norse']
+dpi = 100
+
+# Define color mapping for resistance types
+color_mapping = {
+    'freeweight': 'blue',
+    'keiser': 'orange',
+    'quantum': 'grey',
+    'norse': 'green'
+}
+
+### Ensure the output directory exists
+if not os.path.exists(output_directory):
+    os.makedirs(output_directory)
+
+### Dictionary to map different terms to a unified terminology
+term_mapping = {
+    'Stang position': 'Barbell position',
+    'Stang velocity': 'Barbell velocity',
+    'Stang force (FP)': 'Barbell force (FP)',
+}
+
+# Function to preprocess and select valid data with specific handling for different exercises
+def preprocess_and_select_data(df, term_mapping, sampling_frequency, exercise_name):
+    df.rename(columns=term_mapping, inplace=True)
+
+    # Specific handling for "squat" exercise
+    if exercise_name in ['squat', 'bench', 'row']:
+        df['Barbell force (FP)'] = df[['Gulv stor Newton', 'Gulv h Newton', 'Gulv v Newton']].sum(axis=1)
+    else:  # For other exercises
+        # Handle other exercises if needed
+        pass
+    
+    df.drop(['Gulv stor sway X', 'Gulv stor sway Y', 'Gulv h sway X', 'Gulv h sway Y', 'Gulv v sway X', 'Gulv v sway Y',
+             'Gulv stor Newton', 'Gulv h Newton', 'Gulv v Newton'], axis=1, inplace=True)
+
+    # Normalize barbell position to percentage
+    max_position = df['Barbell position'].max()
+    df['Barbell position'] = (df['Barbell position'] / max_position) * 100
+
+    # Define start and end of concentric phase using barbell velocity
+    Rep_velocity_cutoff = 0.015
+    Number_samples_cutoff1 = round(0.4 * sampling_frequency)
+    Number_samples_cutoff2 = round(0.0067 * sampling_frequency)
+
+    Rep_con_start = None
+    Rep_con_end = None
+
+    for i in range(len(df['timestamp']) - Number_samples_cutoff1 + 1):
+        if all(df.loc[i:i + Number_samples_cutoff1 - 1, 'Barbell velocity'] > Rep_velocity_cutoff):
+            Rep_con_start = i
+            break
+
+    if Rep_con_start is not None:
+        for i in range(Rep_con_start, len(df['timestamp']) - Number_samples_cutoff2 + 1):
+            if all(df.loc[i:i + Number_samples_cutoff2 - 1, 'Barbell velocity'] < Rep_velocity_cutoff):
+                Rep_con_end = i + Number_samples_cutoff2 - 1
+                break
+
+    if Rep_con_start is None or Rep_con_end is None:
+        print(f"Could not determine concentric phase for rep in file. Skipping this rep.")
+        return None  # Invalid rep, skip this one
+
+    df_con_phase = df.iloc[Rep_con_start:Rep_con_end]
+
+    if df_con_phase['Barbell position'].max() <= 0.25:
+        print(f"Max position is not greater than 0.25m. Skipping this rep.")
+        return None  # Skip this rep if max position is not greater than 0.25m
+
+    return df_con_phase
+
+# Initialize the data structure to store all preprocessed data
+all_data = {}
+
+# Main processing loop with specific handling for different exercises
+for subject_folder in os.listdir(data_directory):
+    subject_path = os.path.join(data_directory, subject_folder)
+    if os.path.isdir(subject_path):
+        for exercise_folder in os.listdir(subject_path):
+            exercise_path = os.path.join(subject_path, exercise_folder)
+            if os.path.isdir(exercise_path):
+                exercise_name = exercise_folder.lower()
+                exercise_data = {}
+                for resistance_type in resistance_types:
+                    resistance_path = os.path.join(exercise_path, resistance_type)
+                    if os.path.isdir(resistance_path):
+                        df_dictionary = {}
+                        for file_name in os.listdir(resistance_path):
+                            if file_name.endswith('.csv'):
+                                file_path = os.path.join(resistance_path, file_name)
+                                df = pd.read_csv(file_path, delimiter=';', decimal=",")
+                                df_con_phase = preprocess_and_select_data(df, term_mapping, sampling_frequency, exercise_name)
+                                if df_con_phase is not None:
+                                    df_key_name = f"{resistance_type}_{file_name}"
+                                    df_dictionary[df_key_name] = df_con_phase
+                        if df_dictionary:
+                            exercise_data[resistance_type] = df_dictionary
+                if exercise_data:
+                    all_data[exercise_name] = exercise_data
+
+
+# Function to calculate peak force in 0-10% range for a single curve
+def calculate_peak_force_0_10(curve, positions):
+    peak_force_0_10 = np.max(curve[positions <= 10])
+    peak_position = positions[np.argmax(curve[positions <= 10])]
+    return peak_position, peak_force_0_10
+
+
+# Function to identify sticking regions in the exercises squat and bench press
+def mark_lowest_position_in_range(mean_curve, positions, start_pct, end_pct):
+    start_idx = int(start_pct / 100 * len(positions))
+    end_idx = int(end_pct / 100 * len(positions))
+    segment = mean_curve[start_idx:end_idx]
+    min_idx = np.argmin(segment) + start_idx
+    min_value = mean_curve[min_idx]
+    min_position = positions[min_idx]
+    return min_value, min_position
+
+
+# Function to calculate mean force curve and peak force in 0-10% range
+def calculate_mean_force_curve(force_data):
+    # Define common positions for interpolation (100 points for 0-100%)
+    common_positions = np.linspace(0, 100, num=100)
+    # Interpolate all force data to the common positions
+    interpolated_data = [np.interp(common_positions, np.linspace(0, 100, len(d)), d) for d in force_data]
+    mean_curve = np.mean(interpolated_data, axis=0)
+    return common_positions, mean_curve
+
+# New function to generate PDFs
+def generate_exercise_pdf(all_data, output_directory, dpi):
+    # Create a PDF for each exercise
+    for exercise in ['squat', 'bench', 'row']:
+        # Initialize a dictionary to hold all data for the current exercise
+        exercise_data = {modality: [] for modality in resistance_types}
+        
+        # Aggregate data for the current exercise across all subjects and modalities
+        for subject_num in range(1, 16):
+            specific_subject = f'subject_{subject_num}'
+            subject_path = os.path.join(data_directory, specific_subject)
+            if os.path.isdir(subject_path):
+                exercise_path = os.path.join(subject_path, exercise)
+                if os.path.isdir(exercise_path):
+                    for resistance_type in resistance_types:
+                        resistance_path = os.path.join(exercise_path, resistance_type)
+                        if os.path.isdir(resistance_path):
+                            for file_name in os.listdir(resistance_path):
+                                if file_name.endswith('.csv'):
+                                    file_path = os.path.join(resistance_path, file_name)
+                                    df = pd.read_csv(file_path, delimiter=';', decimal=",")
+                                    processed_df = preprocess_and_select_data(df, term_mapping, sampling_frequency, exercise)
+                                    if processed_df is not None:
+                                        exercise_data[resistance_type].append(processed_df['Barbell force (FP)'].values)
+        
+        # Plot the mean force curve for each modality in a single graph
+        pdf_filename = f"{exercise}_mean_force_curves.pdf"
+        pdf_path = os.path.join(output_directory, pdf_filename)
+        with PdfPages(pdf_path) as pdf:
+            plt.figure(figsize=(10, 6), dpi=dpi)
+            for modality, force_data in exercise_data.items():
+                if force_data:
+                    common_positions, mean_curve = calculate_mean_force_curve(force_data)
+                    plt.plot(common_positions, mean_curve, label=modality, color=color_mapping[modality])
+                    
+                    # Mark the peak force in 0-10% range
+                    peak_position, peak_force_0_10 = calculate_peak_force_0_10(mean_curve, common_positions)
+                    plt.scatter(peak_position, peak_force_0_10, color='red')
+                    plt.annotate(f'{peak_force_0_10:.2f} N', (peak_position, peak_force_0_10), textcoords="offset points", xytext=(10,-10), ha='center')
+
+            plt.title(f"Mean Force Curve across all subjects - {exercise}")
+            plt.xlabel('Barbell Position (%)')
+            plt.ylabel('Force (N)')
+            plt.legend()
+            plt.grid(True)
+            pdf.savefig()  # saves the current figure into a pdf page
+            plt.close()
+
+            
+
+# Call the new function to generate the PDFs
+all_data = {}  # This will contain all the force data for each subject
+generate_exercise_pdf(all_data, output_directory, dpi)
