@@ -15,8 +15,8 @@ from matplotlib.backends.backend_pdf import PdfPages
 
 ### Input variables
 sampling_frequency = 200  # Hz
-data_directory = '/Users/botonddavoti/MasterPython/Data 2'  # Oppdater med den faktiske banen til dataene dine
-output_directory = "/Users/botonddavoti/MasterPython/Average Force Curves"  # Oppdater med ønsket utdatamappebane
+data_directory = './data'  # Update with the actual path to your data
+output_directory = "./outputs/test"  # Update with your desired output path
 resistance_types = ['freeweight', 'keiser', 'quantum', 'norse']
 dpi = 100
 

@@ -17,8 +17,8 @@ import itertools
 
 ### Input variables
 sampling_frequency = 200  # Hz
-data_directory = '/Users/botonddavoti/MasterPython/Data 2'  # Update with the actual path to your data
-output_directory = "/Users/botonddavoti/MasterPython/SPM2"  # Update with your desired output path
+data_directory = './data'  # Update with the actual path to your data
+output_directory = "./outputs/SPM _test2"  # Update with your desired output path
 resistance_types = ['freeweight', 'keiser', 'quantum', 'norse']
 dpi = 100
 

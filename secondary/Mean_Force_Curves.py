@@ -1,11 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Wed Nov 15 08:49:36 2023
-
-@author: botonddavoti
-"""
-
 import os
 import pandas as pd
 import numpy as np
@@ -15,33 +7,38 @@ from matplotlib.backends.backend_pdf import PdfPages
 
 ### Input variables
 sampling_frequency = 200  # Hz
-data_directory = '/Users/botonddavoti/MasterPython/Data'
-output_directory = "/Users/botonddavoti/MasterPython/Average Force Curves"
+data_directory = './data'  # Update with the actual path to your data
+output_directory = "./outputs/test"  # Update with your desired output path
 resistance_types = ['freeweight', 'keiser', 'quantum', 'norse']
 dpi = 100
+
+### Ensure the output directory exists
+if not os.path.exists(output_directory):
+    os.makedirs(output_directory)
 
 ### Dictionary to map different terms to a unified terminology
 term_mapping = {
     'Stang position': 'Barbell position',
     'Stang velocity': 'Barbell velocity',
     'Stang force (FP)': 'Barbell force (FP)',
-    # Add more mappings if there are more terms
 }
 
-# Ensure the output directory exists
-os.makedirs(output_directory, exist_ok=True)
-
-# Function to preprocess and select valid data
-def preprocess_and_select_data(df, term_mapping, sampling_frequency):
-    # Apply term mapping to rename columns
+# Modified function to preprocess and select valid data with specific handling for different exercises
+def preprocess_and_select_data(df, term_mapping, sampling_frequency, exercise_name):
     df.rename(columns=term_mapping, inplace=True)
-    df['Barbell force (FP)'] = df[['Gulv stor Newton', 'Gulv h Newton', 'Gulv v Newton']].sum(axis=1)
+
+    # Specific handling for "squat" exercise
+    if exercise_name == 'squat':
+        df['Barbell force (FP)'] = df[['Gulv h Newton', 'Gulv v Newton']].sum(axis=1)
+    else:  # For "bench", "row", and other exercises
+        df['Barbell force (FP)'] = df[['Gulv stor Newton', 'Gulv h Newton', 'Gulv v Newton']].sum(axis=1)
+    
     df.drop(['Gulv stor sway X', 'Gulv stor sway Y', 'Gulv h sway X', 'Gulv h sway Y', 'Gulv v sway X', 'Gulv v sway Y',
              'Gulv stor Newton', 'Gulv h Newton', 'Gulv v Newton'], axis=1, inplace=True)
 
     # Normalize barbell position to percentage
     max_position = df['Barbell position'].max()
-    df['Barbell position'] = (df['Barbell position'] / max_position) * 100  # Convert to percentage
+    df['Barbell position'] = (df['Barbell position'] / max_position) * 100
 
     # Define start and end of concentric phase using barbell velocity
     Rep_velocity_cutoff = 0.015
@@ -74,8 +71,10 @@ def preprocess_and_select_data(df, term_mapping, sampling_frequency):
 
     return df_con_phase
 
-# Main processing loop
+# Initialize the data structure to store all preprocessed data
 all_data = {}
+
+# Main processing loop with specific handling for different exercises
 for subject_folder in os.listdir(data_directory):
     subject_path = os.path.join(data_directory, subject_folder)
     if os.path.isdir(subject_path):
@@ -88,36 +87,60 @@ for subject_folder in os.listdir(data_directory):
                     resistance_path = os.path.join(exercise_path, resistance_type)
                     if os.path.isdir(resistance_path):
                         df_dictionary = {}
-                        counter = 1
                         for file_name in os.listdir(resistance_path):
                             if file_name.endswith('.csv'):
                                 file_path = os.path.join(resistance_path, file_name)
                                 df = pd.read_csv(file_path, delimiter=';', decimal=",")
-                                df_con_phase = preprocess_and_select_data(df, term_mapping, sampling_frequency)
+                                df_con_phase = preprocess_and_select_data(df, term_mapping, sampling_frequency, exercise_name)
                                 if df_con_phase is not None:
-                                    df_key_name = f"Rep{counter}"
+                                    df_key_name = f"{resistance_type}_{file_name}"
                                     df_dictionary[df_key_name] = df_con_phase
-                                    counter += 1
-
                         if df_dictionary:
                             exercise_data[resistance_type] = df_dictionary
-
                 if exercise_data:
                     all_data[exercise_name] = exercise_data
 
-# Plot and save figures for all exercises and resistance types
-for exercise_name, exercise_data in all_data.items():
-    for resistance_type, resistance_data in exercise_data.items():
-        pdf_path = os.path.join(output_directory, f"{exercise_name}_{resistance_type}.pdf")
-        with PdfPages(pdf_path) as pdf:
-            for metric in ['Barbell force (FP)', 'Barbell velocity']:
-                fig, ax = plt.subplots(dpi=dpi)
-                for df_key_name, df_value_rep in resistance_data.items():
-                    ax.plot(df_value_rep['Barbell position'], df_value_rep[metric], label=df_key_name)
-                ax.set_xlabel('Barbell position (%)')
-                ax.set_ylabel(metric)
-                ax.legend()
-                pdf.savefig(fig)
-                plt.close(fig)
+# Function to calculate the average curve across all reps for each resistance type
+def calculate_average_curve(resistance_data, all_positions):
+    # Prepare data for averaging
+    all_forces = []
 
-print("Processing complete.")
+    # Collect force data from all reps
+    for df_key_name, df_value_rep in resistance_data.items():
+        # Interpolate force data
+        interp_func = interp1d(df_value_rep['Barbell position'], df_value_rep['Barbell force (FP)'],
+                               kind='linear', bounds_error=False, fill_value='extrapolate')
+        interpolated_forces = interp_func(all_positions)
+        # Replace negative values with zero
+        interpolated_forces[interpolated_forces < 0] = 0
+        all_forces.append(interpolated_forces)
+
+    # Calculate the average force across all reps
+    avg_force = np.mean(all_forces, axis=0)
+    return avg_force
+
+# Generate and save the plots
+def generate_plots(all_data, output_directory, dpi):
+    common_positions = np.linspace(0, 100, num=1000)  # Common set of positions for interpolation
+    for exercise_name, exercise_data in all_data.items():
+        plt.figure(figsize=(10, 5), dpi=dpi)
+        for resistance_type, resistance_data in exercise_data.items():
+            avg_force = calculate_average_curve(resistance_data, common_positions)
+            plt.plot(common_positions, avg_force, label=f'{resistance_type} Average')
+        plt.title(f'Average Force Curves - {exercise_name}')
+        plt.xlabel('Barbell Position (%)')
+        plt.ylabel('Force (FP)')
+        plt.legend()
+        plt.grid(True)
+        plt.tight_layout()
+        
+        # Save the plot to a PDF
+        pdf_filename = f"{exercise_name}_average_force_curves.pdf"
+        pdf_path = os.path.join(output_directory, pdf_filename)
+        with PdfPages(pdf_path) as pdf:
+            pdf.savefig()
+        plt.close()
+
+generate_plots(all_data, output_directory, dpi)
+
+print("Processing complete. Check the output directory for the plots.")

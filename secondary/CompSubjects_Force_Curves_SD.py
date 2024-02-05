@@ -1,3 +1,11 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Thu Dec 14 14:24:33 2023
+
+@author: botonddavoti
+"""
+
 import os
 import pandas as pd
 import numpy as np
@@ -8,8 +16,8 @@ from matplotlib.cm import tab20
 
 ### Input variables
 sampling_frequency = 200  # Hz
-data_directory = '/Users/botonddavoti/MasterPython/Data 2'  # Update with the actual path to your data
-output_directory = "/Users/botonddavoti/MasterPython/Force Curves"  # Update with your desired output path
+data_directory = './data'  # Update with the actual path to your data
+output_directory = "./outputs/test1"  # Update with your desired output path
 resistance_types = ['freeweight', 'keiser', 'quantum', 'norse']
 dpi = 100
 
@@ -90,22 +98,39 @@ def calculate_and_plot_subject_curves(all_data, output_directory, dpi):
             colors = get_distinct_colors(len(resistance_data))
 
             sorted_subjects = sorted(resistance_data.keys(), key=lambda x: int(''.join(filter(str.isdigit, x))), reverse=True)
+            all_avg_forces = []
+            all_peak_forces = []
 
             for idx, subject in enumerate(sorted_subjects):
                 subject_data = resistance_data[subject]
-                all_forces = []
+                subject_forces = []
                 all_positions = np.linspace(0, 100, 1000)
 
                 for df in subject_data:
                     valid_positions = df['Barbell position']
                     valid_forces = df['Barbell force (FP)']
                     interpolated_forces = interpolate_forces(valid_positions, valid_forces, all_positions)
-                    all_forces.append(interpolated_forces)
+                    subject_forces.append(interpolated_forces)
 
-                avg_force = np.mean(all_forces, axis=0)
-                std_dev = np.std(all_forces, axis=0)
+                avg_force = np.mean(subject_forces, axis=0)
+                all_avg_forces.append(avg_force)
+                all_peak_forces.append(max(avg_force))
                 ax.plot(all_positions, avg_force, label=f'{subject}', color=colors[idx])  # <-- Change made here
-                ax.fill_between(all_positions, avg_force - std_dev, avg_force + std_dev, color=colors[idx], alpha=0.3)
+
+            # Calculate the spread and standard deviation
+            avg_force_spread = np.ptp([np.mean(force) for force in all_avg_forces])
+            peak_force_spread = max(all_peak_forces) - min(all_peak_forces)
+            std_dev_avg_force = np.std([np.mean(force) for force in all_avg_forces])
+            std_dev_peak_force = np.std(all_peak_forces)
+
+            # Plotting the calculated values on the graph
+            ax.text(1.05, 0.5, f'Avg Force Spread: {avg_force_spread:.2f}\n'
+                                f'Peak Force Spread: {peak_force_spread:.2f}\n'
+                                f'Std Dev Avg Force: {std_dev_avg_force:.2f}\n'
+                                f'Std Dev Peak Force: {std_dev_peak_force:.2f}',
+                    horizontalalignment='left',
+                    verticalalignment='center',
+                    transform=ax.transAxes)
 
             ax.set_title(f'Average Force Curve for {exercise_name} - {resistance_type}')
             ax.set_xlabel('Barbell Position (%)')
@@ -119,6 +144,8 @@ def calculate_and_plot_subject_curves(all_data, output_directory, dpi):
             with PdfPages(pdf_path) as pdf:
                 pdf.savefig()
             plt.close()
+
+
 
 # Main processing loop
 all_data = {}

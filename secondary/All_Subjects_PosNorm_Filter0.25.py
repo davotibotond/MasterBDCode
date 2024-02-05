@@ -1,21 +1,12 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Tue Dec 12 11:13:17 2023
-
-@author: botonddavoti
-"""
-
 import os
 import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
-from scipy.signal import butter, filtfilt
 
 ### Input variables
 sampling_frequency = 200  # Hz
-data_directory = '/Users/botonddavoti/MasterPython/Data 2'
-output_directory = "/Users/botonddavoti/MasterPython/Power Curves Filtered 2"
+data_directory = './data'  # Update with the actual path to your data
+output_directory = "./outputs/test3"  # Update with your desired output path
 resistance_types = ['freeweight', 'keiser', 'quantum', 'norse']
 dpi = 100
 
@@ -27,26 +18,17 @@ term_mapping = {
     # Add more mappings if there are more terms
 }
 
-# Butterworth Low-Pass Filter function
-def butter_lowpass_filter(data, cutoff, fs, order=5):
-    nyq = 0.5 * fs  # Nyquist Frequency
-    normal_cutoff = cutoff / nyq
-    b, a = butter(order, normal_cutoff, btype='low', analog=False)
-    y = filtfilt(b, a, data)
-    return y
+# Ensure the output directory exists
+os.makedirs(output_directory, exist_ok=True)
 
 # Function to preprocess and plot data
 def process_and_plot_data(df_dictionary, resistance_type, subject, exercise):
     valid_reps = {}  # Dictionary to store only the valid reps
+    is_bench_exercise = 'bench' in exercise.lower()  # Check if the exercise is a bench press
 
     for df_key_name, df_value_rep in df_dictionary.items():
         # Preprocess each dataframe/rep
         df_value_rep['Barbell force (FP)'] = df_value_rep[['Gulv stor Newton', 'Gulv h Newton', 'Gulv v Newton']].sum(axis=1)
-        df_value_rep['Power'] = df_value_rep['Barbell force (FP)'] * df_value_rep['Barbell velocity']
-
-        # Apply Butterworth low-pass filter to the Power signal
-        df_value_rep['Power'] = butter_lowpass_filter(df_value_rep['Power'], 20, sampling_frequency)
-
         df_value_rep.drop(
             ['Gulv stor sway X', 'Gulv stor sway Y', 'Gulv h sway X', 'Gulv h sway Y', 'Gulv v sway X', 'Gulv v sway Y',
              'Gulv stor Newton', 'Gulv h Newton', 'Gulv v Newton'], axis=1, inplace=True)
@@ -76,33 +58,33 @@ def process_and_plot_data(df_dictionary, resistance_type, subject, exercise):
 
         df_con_phase = df_value_rep.iloc[Rep_con_start:Rep_con_end]
 
-        # Normalize barbell position to a scale of 0-100%
-        min_pos = df_con_phase['Barbell position'].min()
-        max_pos = df_con_phase['Barbell position'].max()
-        df_con_phase['Normalized position'] = (df_con_phase['Barbell position'] - min_pos) / (max_pos - min_pos) * 100
+        # Apply the general barbell position filter
+        if df_con_phase['Barbell position'].max() <= 0.25:
+            continue  # Skip this rep for all exercises if max position is not greater than 0.25m
 
-        # Store the processed rep
-        valid_reps[df_key_name] = df_con_phase
+        # Apply the additional barbell position filter specifically for bench press
+        if is_bench_exercise and df_con_phase['Barbell position'].max() > 0.5:
+            continue  # Skip this rep for bench press
 
-    # Generate the PDF report only for valid reps
+        valid_reps[df_key_name] = df_con_phase  # Add to valid reps
+
+    # Plot and save figures to PDF only for valid reps
     if valid_reps:
         subject_output_directory = os.path.join(output_directory, subject)
         os.makedirs(subject_output_directory, exist_ok=True)
         pdf_path = os.path.join(subject_output_directory, f"{resistance_type}_{exercise}.pdf")
 
         with PdfPages(pdf_path) as pdf:
-            for metric in ['Power']:
+            for metric in ['Barbell position', 'Barbell velocity', 'Barbell force (FP)']:
                 fig, ax = plt.subplots(dpi=dpi)
                 for df_key_name, df_value_rep in valid_reps.items():
-                    ax.plot(df_value_rep['Normalized position'], df_value_rep[metric], label=df_key_name)
-                ax.set_xlabel('Barbell position (%)')
-                ax.set_ylabel("Power (W)")
-                ax.legend()
+                    ax.plot(df_value_rep['timestamp'] if metric == 'Barbell position' else df_value_rep['Barbell position'],
+                            df_value_rep[metric], label=df_key_name)
+                    ax.set_xlabel('Time (s)' if metric == 'Barbell position' else 'Barbell position (m)')
+                    ax.set_ylabel(f"{metric} " + ("(m)" if metric == 'Barbell position' else "(m/s)" if metric == 'Barbell velocity' else "(N)"))
+                    ax.legend()
                 pdf.savefig(fig)
                 plt.close(fig)
-
-# Ensure the output directory exists
-os.makedirs(output_directory, exist_ok=True)
 
 # Loop through all subjects, exercises, and resistance types
 for subject_folder in os.listdir(data_directory):
