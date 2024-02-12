@@ -128,6 +128,10 @@ def calculate_mean_force_curve(force_data):
 
 # New function to generate PDFs
 def generate_exercise_pdf(all_data, output_directory, dpi):
+    # Define common positions for interpolation (100 points for 0-100%)
+    common_positions = np.linspace(0, 100, num=100)
+    saved_figures = []  # List to store figures for saving
+
     # Create a PDF for each exercise
     for exercise in ['squat', 'bench', 'row']:
         # Initialize a dictionary to hold all data for the current exercise
@@ -152,23 +156,66 @@ def generate_exercise_pdf(all_data, output_directory, dpi):
                                         exercise_data[resistance_type].append(processed_df['Barbell force (FP)'].values)
         
         # Plot the mean force curve for each modality in a single graph
-        pdf_filename = f"{exercise}_mean_force_curves.pdf"
+        pdf_filename = f"{exercise}_combined_analysis.pdf"
         pdf_path = os.path.join(output_directory, pdf_filename)
-        with PdfPages(pdf_path) as pdf:
-            plt.figure(figsize=(10, 6), dpi=dpi)
-            for modality, force_data in exercise_data.items():
-                if force_data:
-                    common_positions, mean_curve = calculate_mean_force_curve(force_data)
-                    plt.plot(common_positions, mean_curve, label=modality, color=color_mapping[modality])
+        figures_to_save = False  # Flag to track if we have valid figures to save
 
-            plt.title(f"Mean Force Curve across all subjects - {exercise}")
-            plt.xlabel('Barbell Position (%)')
-            plt.ylabel('Force (N)')
-            plt.legend()
-            plt.grid(True)
-            pdf.savefig()  # saves the current figure into a pdf page
-            plt.close()
+        for pair in itertools.combinations(resistance_types, 2):
+            fig, axs = plt.subplots(2, 1, figsize=(10, 6), dpi=dpi)
 
-# Call the new function to generate the PDFs
-all_data = {}  # This will contain all the force data for each subject
+            # Validate and prepare data for SPM analysis
+            data1 = [d for d in exercise_data[pair[0]] if len(d) > 1]
+            data2 = [d for d in exercise_data[pair[1]] if len(d) > 1]
+            if not data1 or not data2:
+                plt.close(fig)
+                continue
+
+            data1_interp = [np.interp(common_positions, np.linspace(0, 100, len(d)), d) for d in data1]
+            data2_interp = [np.interp(common_positions, np.linspace(0, 100, len(d)), d) for d in data2]
+            data1 = np.array(data1_interp)
+            data2 = np.array(data2_interp)
+
+            # Perform SPM t-test
+            if data1.size > 0 and data2.size > 0:
+                t = spm1d.stats.ttest2(data1, data2, equal_var=True).inference(alpha=0.05)
+                ax_spm = axs[1]
+                ax_spm.set_title(f'SPM {pair[0]} vs {pair[1]}')
+                t.plot(ax=ax_spm)
+                t.plot_threshold_label(ax=ax_spm)
+                # Convert t.p to numpy array if necessary
+                p_values = np.array(t.p)
+                if np.any(p_values < 0.05):
+                    t.plot_p_values(ax=ax_spm)
+                    figures_to_save = True  # Valid figure to save
+
+            # Plot mean force curves
+            ax_mfc = axs[0]
+            if data1.size > 0:
+                _, mean_curve1 = calculate_mean_force_curve(data1_interp)
+                ax_mfc.plot(common_positions, mean_curve1, label=pair[0], color=color_mapping[pair[0]])
+            if data2.size > 0:
+                _, mean_curve2 = calculate_mean_force_curve(data2_interp)
+                ax_mfc.plot(common_positions, mean_curve2, label=pair[1], color=color_mapping[pair[1]])
+            ax_mfc.set_title(f'Mean Force Curve - {pair[0]} vs {pair[1]}')
+            ax_mfc.set_xlabel('Barbell Position (%)')
+            ax_mfc.set_ylabel('Force (N)')
+            ax_mfc.legend()
+
+            plt.tight_layout()
+            saved_figures.append(fig)
+
+        # Save the figures to a PDF file if there are any
+        if saved_figures:
+            pdf_filename = f"{exercise}_combined_analysis.pdf"
+            pdf_path = os.path.join(output_directory, pdf_filename)
+            with PdfPages(pdf_path) as pdf:
+                for fig in saved_figures:
+                    pdf.savefig(fig)
+                    plt.close(fig)
+            saved_figures.clear()  # Clear the list for the next exercise
+        else:
+            print(f"No valid data to save for {exercise}, skipping PDF generation.")
+
+# Call the function to generate the PDFs
+# Assuming all_data is populated as per your existing logic
 generate_exercise_pdf(all_data, output_directory, dpi)
