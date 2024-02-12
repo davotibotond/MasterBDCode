@@ -1,0 +1,145 @@
+import os
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+
+### Input variables
+data_directory = './data'  # Update with the actual path to your data
+output_directory = "./outputs/individual_force_0-10"  # Update with your desired output path
+resistance_types = ['freeweight', 'keiser', 'quantum', 'norse']
+sampling_frequency = 200  # Hz
+dpi = 100
+
+# Ensure the output directory exists
+if not os.path.exists(output_directory):
+    os.makedirs(output_directory)
+
+# Define color mapping for resistance types
+color_mapping = {
+    'freeweight': 'blue',
+    'keiser': 'orange',
+    'quantum': 'grey',
+    'norse': 'green'
+}
+
+# Dictionary to map different terms to a unified terminology
+term_mapping = {
+    'Stang position': 'Barbell position',
+    'Stang velocity': 'Barbell velocity',
+    'Stang force (FP)': 'Barbell force (FP)',
+}
+
+data = {
+    "bench_freeweight": [624.93, 794.32, 1290.78, 1001.00, 1063.47, 390.05, 898.23, 812.46, 1070.12, 1345.60, 685.66, 347.92, 625.10, 1057.55, 1401.23],
+    "bench_keiser": [618.10, 781.78, 853.68, 831.87, 831.35, 330.23, 744.45, 845.38, 1086.91, 552.94, 328.70, 454.45, 827.82, 1082.89],
+    "bench_quantum": [649.66, 769.31, 891.43, 868.83, 841.48, 331.21, 778.03, 829.10, 914.99, 1171.44, 525.64, 360.00, 397.53, 841.88, 1110.22],
+    "bench_norse": [388.10, 568.50, 394.65, 497.83, 388.22, 148.00, 407.15, 382.16, 415.28, 618.03, 286.58, 152.20, 197.43, 392.45, 329.49],
+    "squat_freeweight": [2284.35, 1958.74, 2447.50, 2486.67, 2579.60, 1413.17, 1972.31, 1797.20, 1941.11, 2315.08, 1518.06, 1280.96, 1493.89, 2032.30, 2704.75],
+    "squat_keiser": [2170.80, 1985.81, 2285.16, 2389.55, 2187.98, 1397.57, 1925.81, 1766.26, 1930.67, 2224.98, 1458.69, 1309.54, 1430.78, 1746.25, 2583.81],
+    "squat_quantum": [2238.31, 2102.26, 2351.26, 2291.55, 2015.22, 1440.61, 1999.72, 1868.46, 1983.16, 2310.90, 1467.97, 1315.56, 1627.94],
+    "row_freeweight": [749.73, 876.94, 1191.70, 1006.09, 1030.43, 457.33, 889.95, 815.09, 822.25, 1318.80, 658.02, 423.42, 555.70, 1028.33, 1543.59],
+    "row_keiser": [698.68, 793.74, 707.76, 838.51, 634.38, 698.72, 741.43, 578.55, 435.09, 463.29, 594.73, 735.41, 1190.70],
+    "row_quantum": [789.68, 936.13, 624.52, 1162.90, 868.53, 578.18, 949.13, 1308.60, 925.22, 1313.21, 544.54, 428.33, 609.47, 1283.35, 1750.66],
+    "row_norse": [253.43, 655.31, 607.80, 817.21, 488.89, 198.53, 429.20, 420.87, 455.99, 616.69, 309.50, 162.65, 267.79, 628.95, 944.05]
+}
+
+# Calculating the average for each exercise modality
+average_peak_force = {modality: sum(values) / len(values) for modality, values in data.items()}
+
+
+# Function to preprocess and select valid data with specific handling for different exercises
+def preprocess_and_select_data(df, term_mapping, sampling_frequency, exercise_name):
+    df.rename(columns=term_mapping, inplace=True)
+
+    # Specific handling for "squat", "bench", and "row" exercises
+    if exercise_name in ['squat', 'bench', 'row']:
+        df['Barbell force (FP)'] = df[['Gulv stor Newton', 'Gulv h Newton', 'Gulv v Newton']].sum(axis=1)
+    else:
+        # Handle other exercises if needed
+        pass
+    
+    df.drop(['Gulv stor sway X', 'Gulv stor sway Y', 'Gulv h sway X', 'Gulv h sway Y', 'Gulv v sway X', 'Gulv v sway Y',
+             'Gulv stor Newton', 'Gulv h Newton', 'Gulv v Newton'], axis=1, inplace=True)
+
+    # Normalize barbell position to percentage
+    max_position = df['Barbell position'].max()
+    df['Barbell position'] = (df['Barbell position'] / max_position) * 100
+
+    # Define start and end of concentric phase using barbell velocity
+    Rep_velocity_cutoff = 0.015
+    Number_samples_cutoff1 = round(0.4 * sampling_frequency)
+    Number_samples_cutoff2 = round(0.0067 * sampling_frequency)
+
+    Rep_con_start = None
+    Rep_con_end = None
+
+    for i in range(len(df['timestamp']) - Number_samples_cutoff1 + 1):
+        if all(df.loc[i:i + Number_samples_cutoff1 - 1, 'Barbell velocity'] > Rep_velocity_cutoff):
+            Rep_con_start = i
+            break
+
+    if Rep_con_start is not None:
+        for i in range(Rep_con_start, len(df['timestamp']) - Number_samples_cutoff2 + 1):
+            if all(df.loc[i:i + Number_samples_cutoff2 - 1, 'Barbell velocity'] < Rep_velocity_cutoff):
+                Rep_con_end = i + Number_samples_cutoff2 - 1
+                break
+
+    if Rep_con_start is None or Rep_con_end is None:
+        print(f"Could not determine concentric phase for rep in file. Skipping this rep.")
+        return None  # Invalid rep, skip this one
+
+    df_con_phase = df.iloc[Rep_con_start:Rep_con_end]
+
+    if df_con_phase['Barbell position'].max() <= 0.25:
+        print(f"Max position is not greater than 0.25m. Skipping this rep.")
+        return None  # Skip this rep if max position is not greater than 0.25m
+
+    return df_con_phase
+
+
+# Function to calculate peak force in 0-10% range for individual reps
+def calculate_peak_force_0_10(data):
+    common_positions = np.linspace(0, 100, num=100)
+    peak_forces = []
+    for d in data:
+        interpolated = np.interp(common_positions, np.linspace(0, 100, len(d)), d)
+        peak_force = np.max(interpolated[common_positions <= 10])
+        peak_forces.append(peak_force)
+    return np.mean(peak_forces) if peak_forces else None
+
+# Loop over each subject
+for subject_num in range(1, 16):
+    specific_subject = f'subject_{subject_num}'
+    subject_path = os.path.join(data_directory, specific_subject)
+
+    subject_peak_forces = {}
+
+    if os.path.isdir(subject_path):
+        for exercise_folder in os.listdir(subject_path):
+            exercise_path = os.path.join(subject_path, exercise_folder)
+            if os.path.isdir(exercise_path):
+                exercise_name = exercise_folder.lower()
+                for resistance_type in resistance_types:
+                    resistance_path = os.path.join(exercise_path, resistance_type)
+                    if os.path.isdir(resistance_path):
+                        force_data = []
+                        for file_name in os.listdir(resistance_path):
+                            if file_name.endswith('.csv'):
+                                file_path = os.path.join(resistance_path, file_name)
+                                df = pd.read_csv(file_path, delimiter=';', decimal=",")
+                                processed_df = preprocess_and_select_data(df, term_mapping, sampling_frequency, exercise_name)
+                                if processed_df is not None:
+                                    force_data.append(processed_df['Barbell force (FP)'].values)
+
+                        if force_data:
+                            exercise_modality = f"{exercise_name}_{resistance_type}"
+                            avg_peak_force = calculate_peak_force_0_10(force_data)
+                            if avg_peak_force is not None:
+                                subject_peak_forces[exercise_modality] = avg_peak_force
+
+    # Print the peak force values for the current subject
+    print(f"Average Peak Forces (0-10%) for {specific_subject}:")
+    for modality, avg_force in subject_peak_forces.items():
+        print(f"{modality}: {avg_force:.2f} N")
+
+# [Remove or comment out the code for plotting and printing average peak forces for each exercise modality]
