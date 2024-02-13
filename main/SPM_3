@@ -117,6 +117,16 @@ for subject_folder in os.listdir(data_directory):
                 if exercise_data:
                     all_data[exercise_name] = exercise_data
 
+# Function to identify sticking regions in the exercises squat and bench press
+def mark_lowest_position_in_range(mean_curve, positions, start_pct, end_pct):
+    start_idx = int(start_pct / 100 * len(positions))
+    end_idx = int(end_pct / 100 * len(positions))
+    segment = mean_curve[start_idx:end_idx]
+    min_idx = np.argmin(segment) + start_idx
+    min_value = mean_curve[min_idx]
+    min_position = positions[min_idx]
+    return min_value, min_position
+
 # Function to calculate mean force curve
 def calculate_mean_force_curve(force_data):
     common_positions = np.linspace(0, 100, num=100)
@@ -172,12 +182,16 @@ def generate_combined_pdf(all_data, output_directory, dpi, resistance_types):
                                                 if processed_df is not None:
                                                     force_data_pair[rt].append(processed_df['Barbell force (FP)'].values)
                     
-                    # Plot mean force curves in the first row
-                    ax_mfc = axs[0, i % 3]
+                    # Plot mean force curves and mark lowest positions
                     for rt in pair:
                         _, mean_curve = calculate_mean_force_curve(force_data_pair[rt])
                         if mean_curve.size > 0:
                             ax_mfc.plot(common_positions, mean_curve, label=rt, color=color_mapping[rt])
+
+                            if exercise_name in ['squat', 'bench']:
+                                min_value, min_position = mark_lowest_position_in_range(mean_curve, common_positions, 20, 60)
+                                ax_mfc.scatter(min_position, min_value, color='black')  # Mark on the curve
+
                     ax_mfc.set_title(f'Mean Force - {pair[0]} vs {pair[1]}')
                     ax_mfc.legend()
 
