@@ -110,16 +110,20 @@ def plot_average_force_curve(rep_data, output_directory, dpi, exercise_modality,
     pdf.savefig()  # saves the current figure into a pdf page
     plt.close()
 
-# Modified function to plot force curves for each repetition with peak force marking
 # Modified function to plot force curves for each repetition with peak force marking and print peak forces in the terminal
 def plot_rep_force_curves(rep_data, output_directory, dpi, exercise_modality, specific_subject):
     pdf_path = os.path.join(output_directory, f"{specific_subject}_{exercise_modality}_force_curves.pdf")
+    peak_forces = []  # List to store peak forces for each rep
+
     with PdfPages(pdf_path) as pdf:
-        # Plot and print each repetition
         for rep_number, curve in enumerate(rep_data):
             plt.figure(figsize=(10, 6), dpi=dpi)
             positions = np.linspace(0, 100, len(curve))
             plt.plot(positions, curve, label=f"Rep {rep_number+1}", color=color_mapping.get(exercise_modality.split('_')[-1], 'black'))
+
+            # Calculate and store peak force in 0-10% range
+            peak_position, peak_force_0_10 = calculate_peak_force_0_10(curve, positions)
+            peak_forces.append(peak_force_0_10)
 
             # Calculate and mark peak force in 0-10% range
             peak_position, peak_force_0_10 = calculate_peak_force_0_10(curve, positions)
@@ -142,18 +146,27 @@ def plot_rep_force_curves(rep_data, output_directory, dpi, exercise_modality, sp
         # Plot the average curve
         plot_average_force_curve(rep_data, output_directory, dpi, exercise_modality, specific_subject, pdf)
 
+    return peak_forces
+
+
 # Modified loop to process and plot data for individual repetitions
+subject_modality_averages = {}  # Dictionary to store average peak forces per subject per modality
+
 for subject_num in range(1, 16):
     specific_subject = f'subject_{subject_num}'
     subject_path = os.path.join(data_directory, specific_subject)
 
     if os.path.isdir(subject_path):
+        subject_modality_averages[specific_subject] = {}
+
         for exercise_folder in os.listdir(subject_path):
             exercise_path = os.path.join(subject_path, exercise_folder)
             if os.path.isdir(exercise_path):
                 exercise_name = exercise_folder.lower()
+
                 for resistance_type in resistance_types:
                     resistance_path = os.path.join(exercise_path, resistance_type)
+
                     if os.path.isdir(resistance_path):
                         rep_data = []
                         for file_name in os.listdir(resistance_path):
@@ -166,7 +179,26 @@ for subject_num in range(1, 16):
 
                         if rep_data:
                             exercise_modality = f"{exercise_name}_{resistance_type}"
-                            plot_rep_force_curves(rep_data, output_directory, dpi, exercise_modality, specific_subject)
+                            peak_forces = plot_rep_force_curves(rep_data, output_directory, dpi, exercise_modality, specific_subject)
+
+                            # Calculate and store the average peak force for this subject and modality
+                            if peak_forces:
+                                average_peak_force = np.mean(peak_forces)
+                                subject_modality_averages[specific_subject][exercise_modality] = average_peak_force
+                                print(f"Subject {specific_subject}, {exercise_modality}: Average Peak Force 0-10% = {average_peak_force:.2f} N")
+
+# Define all exercise modalities
+all_exercise_modalities = [f"{exercise}_{resistance}" for exercise in ['bench', 'squat', 'row'] for resistance in resistance_types]
+
+# Compute and print overall averages for each exercise modality
+overall_modality_averages = {modality: 0 for modality in all_exercise_modalities}
+
+for modality in all_exercise_modalities:
+    modality_values = [subject_modality_averages[subject].get(modality, 0) for subject in subject_modality_averages if modality in subject_modality_averages[subject]]
+    overall_modality_averages[modality] = np.mean([v for v in modality_values if v > 0])
+
+for modality, average in overall_modality_averages.items():
+    print(f"Overall Average Peak Force 0-10% for {modality}: {average:.2f} N")
 
 
 # Function to calculate mean force curve and peak force in 0-10% range
