@@ -127,15 +127,20 @@ def mark_lowest_position_in_range(mean_curve, positions, start_pct, end_pct):
     min_position = positions[min_idx]
     return min_value, min_position
 
-# Function to calculate mean force curve
-def calculate_mean_force_curve(force_data):
+# Function to calculate mean and standard deviation force curves
+def calculate_mean_std_force_curve(force_data):
     common_positions = np.linspace(0, 100, num=100)
-    # Ensure all force data arrays have more than one value
     interpolated_data = [np.interp(common_positions, np.linspace(0, 100, len(d)), d) for d in force_data if len(d) > 1]
     if not interpolated_data:
-        return common_positions, np.array([])  # Return an empty array if no valid data
+        return common_positions, np.array([]), np.array([])  # Return empty arrays if no valid data
     mean_curve = np.mean(interpolated_data, axis=0)
-    return common_positions, mean_curve
+    std_dev_curve = np.std(interpolated_data, axis=0)
+    return common_positions, mean_curve, std_dev_curve
+
+# Function to plot the mean force curve with standard deviation shading
+def plot_with_std_dev(ax, positions, mean_curve, std_dev_curve, label, color):
+    ax.plot(positions, mean_curve, label=label, color=color)
+    ax.fill_between(positions, mean_curve - std_dev_curve, mean_curve + std_dev_curve, color=color, alpha=0.2)
 
 # Function to generate and save combined SPM analysis and mean force curve plots
 def generate_combined_pdf(all_data, output_directory, dpi, resistance_types):
@@ -155,13 +160,25 @@ def generate_combined_pdf(all_data, output_directory, dpi, resistance_types):
         pdf_path = os.path.join(output_directory, pdf_filename)
         with PdfPages(pdf_path) as pdf:
             for page, pairs in enumerate(pairs_sets):
-                fig, axs = plt.subplots(2, 3, figsize=(11, 8.5), gridspec_kw={'height_ratios': [1.0, 0.5]}, dpi=dpi)
+                fig, axs = plt.subplots(2, 3, figsize=(12, 8.5), gridspec_kw={'height_ratios': [1.0, 0.5]}, dpi=dpi)
                 fig.suptitle(f"{exercise_name.capitalize()} Analysis - Page {page + 1}")
-                
+
+                # Adjust horizontal spacing between the subplots
+                plt.subplots_adjust(wspace=0.5)  # Adjust this value to increase horizontal space
+                plt.subplots_adjust(hspace=0.5)  # Increase the vertical space between rows of subplots                
+
                 # Plotting the pairs
                 for i, pair in enumerate(pairs):
                     ax_mfc = axs[0, i]
                     ax_spm = axs[1, i]
+
+                    # Set y-axis limits based on the exercise name
+                    if exercise_name == 'squat':
+                        ax_mfc.set_ylim(1000, 2600)
+                    elif exercise_name == 'bench':
+                        ax_mfc.set_ylim(150, 1000)
+                    elif exercise_name == 'row':
+                        ax_mfc.set_ylim(100, 1100)
 
                     # Aggregate data for the current exercise across all subjects and modalities
                     force_data_pair = {rt: [] for rt in pair}
@@ -182,18 +199,21 @@ def generate_combined_pdf(all_data, output_directory, dpi, resistance_types):
                                                 if processed_df is not None:
                                                     force_data_pair[rt].append(processed_df['Barbell force (FP)'].values)
                     
-                    # Plot mean force curves and mark lowest positions
+                    # Plot mean force curves with standard deviation shading
                     for rt in pair:
-                        _, mean_curve = calculate_mean_force_curve(force_data_pair[rt])
+                        positions, mean_curve, std_dev_curve = calculate_mean_std_force_curve(force_data_pair[rt])
                         if mean_curve.size > 0:
-                            ax_mfc.plot(common_positions, mean_curve, label=rt, color=color_mapping[rt])
-
+                            plot_with_std_dev(ax_mfc, positions, mean_curve, std_dev_curve, f'{rt} Mean', color_mapping[rt])
                             if exercise_name in ['squat', 'bench']:
-                                min_value, min_position = mark_lowest_position_in_range(mean_curve, common_positions, 20, 60)
+                                min_value, min_position = mark_lowest_position_in_range(mean_curve, positions, 20, 60)
                                 ax_mfc.scatter(min_position, min_value, color='black')  # Mark on the curve
 
-                    ax_mfc.set_title(f'Mean Force - {pair[0]} vs {pair[1]}')
+                    ax_mfc.set_title(f'Force {pair[0]} vs {pair[1]}')
                     ax_mfc.legend()
+
+                     # Adding labels for x-axis and y-axis
+                    ax_mfc.set_xlabel('Barbell Position (%)')
+                    ax_mfc.set_ylabel('Force (N)')
 
 
                     # Perform and plot SPM analysis in the second row
@@ -210,7 +230,7 @@ def generate_combined_pdf(all_data, output_directory, dpi, resistance_types):
                         # Check if any value in spm_t.p is less than 0.05
                         if any(p_value < 0.05 for p_value in spm_t.p):
                             spm_t.plot_p_values(ax=ax_spm)
-                        ax_spm.set_title(f'SPM Analysis - {pair[0]} vs {pair[1]}')
+                        ax_spm.set_title(f'SPM {pair[0]} vs {pair[1]}')
 
                 pdf.savefig(fig)  # Save the current page
                 plt.close(fig)    # Close the figure to free memory
@@ -219,3 +239,5 @@ def generate_combined_pdf(all_data, output_directory, dpi, resistance_types):
 # Call the function to generate the PDFs
 # Assuming all_data is populated as per your existing logic
 generate_combined_pdf(all_data, output_directory, dpi, resistance_types)
+
+print("Combined PDF generation complete. Check the output directory for the PDFs.")
