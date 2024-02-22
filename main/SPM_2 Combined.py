@@ -179,8 +179,6 @@ def generate_combined_pdf(all_data, output_directory, dpi, resistance_types):
                         if any(p < 0.05 for p in t.p):  # Check if any p-value is significant
                             t.plot_p_values(ax=ax_spm)
 
-
-
                         # Plot mean force curves 
                         ax_mfc = axs[0, i]
                         ax_mfc.set_title(f'Force {pair[0]} vs {pair[1]}')

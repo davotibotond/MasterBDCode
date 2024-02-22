@@ -149,7 +149,7 @@ def calculate_average_curve(resistance_data, all_positions, freeweight_avg_force
 
     return avg_force
 
-# Endret funksjon for å generere og lagre plottene
+# Modified function to generate and save plots
 def generate_plots(all_data, output_directory, dpi):
     common_positions = np.linspace(0, 100, num=1000)
     for exercise_name, exercise_data in all_data.items():
@@ -158,21 +158,23 @@ def generate_plots(all_data, output_directory, dpi):
             plt.figure(figsize=(10, 5), dpi=dpi)
             for resistance_type, resistance_data in exercise_data.items():
                 avg_force = calculate_average_curve(resistance_data, common_positions, freeweight_avg_force)
-                plt.plot(common_positions, avg_force, label=f'{resistance_type} Average')
+                # Use the color mapping for the line color
+                color = color_mapping.get(resistance_type, 'black')  # default to black if not found in mapping
+                plt.plot(common_positions, avg_force, label=f'{resistance_type} Average', color=color)
             plt.title(f'Average Force Curves - {exercise_name}')
             plt.xlabel('Barbell Position (%)')
             plt.ylabel('Normalized Force (FP)')
             plt.legend()
             plt.grid(True)
             plt.tight_layout()
-            
+
             pdf_filename = f"{exercise_name}_average_force_curves.pdf"
             pdf_path = os.path.join(output_directory, pdf_filename)
             with PdfPages(pdf_path) as pdf:
                 pdf.savefig()
             plt.close()
 
-# Kaller den endrede funksjonen
+# Call the modified function
 generate_plots(all_data, output_directory, dpi)
 
 print("Processing complete. Check the output directory for the plots.")
