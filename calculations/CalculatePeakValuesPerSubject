@@ -80,11 +80,11 @@ def preprocess_and_select_data(df, term_mapping, sampling_frequency, exercise_na
 
     return df_con_phase
 
-# Function to calculate peak force in 0-10% range for a single curve
-def calculate_peak_force_0_10(curve, positions):
-    peak_force_0_10 = np.max(curve[positions <= 10])
-    peak_position = positions[np.argmax(curve[positions <= 10])]
-    return peak_position, peak_force_0_10
+# Function to calculate peak force in 0-15% range for a single curve
+def calculate_peak_force_0_15(curve, positions):
+    peak_force_0_15 = np.max(curve[positions <= 15])
+    peak_position = positions[np.argmax(curve[positions <= 15])]
+    return peak_position, peak_force_0_15
 
 # Function to calculate and plot the average force curve
 def plot_average_force_curve(rep_data, output_directory, dpi, exercise_modality, specific_subject, pdf):
@@ -95,10 +95,10 @@ def plot_average_force_curve(rep_data, output_directory, dpi, exercise_modality,
     plt.figure(figsize=(10, 6), dpi=dpi)
     plt.plot(common_positions, mean_curve, label="Average", color='black')
 
-    # Calculate and mark peak average force in 0-10% range
-    peak_position, peak_average_force_0_10 = calculate_peak_force_0_10(mean_curve, common_positions)
-    plt.scatter(peak_position, peak_average_force_0_10, color='red')
-    plt.annotate(f'{peak_average_force_0_10:.2f} N', (peak_position, peak_average_force_0_10), textcoords="offset points", xytext=(10,-10), ha='center')
+    # Calculate and mark peak average force in 0-15% range
+    peak_position, peak_average_force_0_15 = calculate_peak_force_0_15(mean_curve, common_positions)
+    plt.scatter(peak_position, peak_average_force_0_15, color='red')
+    plt.annotate(f'{peak_average_force_0_15:.2f} N', (peak_position, peak_average_force_0_15), textcoords="offset points", xytext=(10,-10), ha='center')
 
     # Additional plot formatting
     plt.title(f"Average Force Curve for {specific_subject} - {exercise_modality}")
@@ -121,17 +121,17 @@ def plot_rep_force_curves(rep_data, output_directory, dpi, exercise_modality, sp
             positions = np.linspace(0, 100, len(curve))
             plt.plot(positions, curve, label=f"Rep {rep_number+1}", color=color_mapping.get(exercise_modality.split('_')[-1], 'black'))
 
-            # Calculate and store peak force in 0-10% range
-            peak_position, peak_force_0_10 = calculate_peak_force_0_10(curve, positions)
-            peak_forces.append(peak_force_0_10)
+            # Calculate and store peak force in 0-15% range
+            peak_position, peak_force_0_15 = calculate_peak_force_0_15(curve, positions)
+            peak_forces.append(peak_force_0_15)
 
-            # Calculate and mark peak force in 0-10% range
-            peak_position, peak_force_0_10 = calculate_peak_force_0_10(curve, positions)
-            plt.scatter(peak_position, peak_force_0_10, color='red')
-            plt.annotate(f'{peak_force_0_10:.2f} N', (peak_position, peak_force_0_10), textcoords="offset points", xytext=(10,-10), ha='center')
+            # Calculate and mark peak force in 0-15% range
+            peak_position, peak_force_0_15 = calculate_peak_force_0_15(curve, positions)
+            plt.scatter(peak_position, peak_force_0_15, color='red')
+            plt.annotate(f'{peak_force_0_15:.2f} N', (peak_position, peak_force_0_15), textcoords="offset points", xytext=(10,-10), ha='center')
 
             # Print the peak force in the terminal
-            print(f"Subject {specific_subject}, {exercise_modality}, Rep {rep_number+1}: Peak Force 0-10% = {peak_force_0_10:.2f} N at {peak_position:.2f}% Position")
+            print(f"Subject {specific_subject}, {exercise_modality}, Rep {rep_number+1}: Peak Force 0-15% = {peak_force_0_15:.2f} N at {peak_position:.2f}% Position")
 
             # Additional plot formatting
             plt.title(f"Force Curve for {specific_subject} - {exercise_modality} - Rep {rep_number+1}")
@@ -185,7 +185,7 @@ for subject_num in range(1, 16):
                             if peak_forces:
                                 average_peak_force = np.mean(peak_forces)
                                 subject_modality_averages[specific_subject][exercise_modality] = average_peak_force
-                                print(f"Subject {specific_subject}, {exercise_modality}: Average Peak Force 0-10% = {average_peak_force:.2f} N")
+                                print(f"Subject {specific_subject}, {exercise_modality}: Average Peak Force 0-15% = {average_peak_force:.2f} N")
 
 # Define all exercise modalities
 all_exercise_modalities = [f"{exercise}_{resistance}" for exercise in ['bench', 'squat', 'row'] for resistance in resistance_types]
@@ -198,10 +198,10 @@ for modality in all_exercise_modalities:
     overall_modality_averages[modality] = np.mean([v for v in modality_values if v > 0])
 
 for modality, average in overall_modality_averages.items():
-    print(f"Overall Average Peak Force 0-10% for {modality}: {average:.2f} N")
+    print(f"Overall Average Peak Force 0-15% for {modality}: {average:.2f} N")
 
 
-# Function to calculate mean force curve and peak force in 0-10% range
+# Function to calculate mean force curve and peak force in 0-15% range
 def calculate_mean_force_curve(force_data):
     # Define common positions for interpolation (100 points for 0-100%)
     common_positions = np.linspace(0, 100, num=100)
@@ -245,10 +245,10 @@ def generate_exercise_pdf(all_data, output_directory, dpi):
                     common_positions, mean_curve = calculate_mean_force_curve(force_data)
                     plt.plot(common_positions, mean_curve, label=modality, color=color_mapping[modality])
                     
-                    # Mark the peak force in 0-10% range
-                    peak_position, peak_force_0_10 = calculate_peak_force_0_10(mean_curve, common_positions)
-                    plt.scatter(peak_position, peak_force_0_10, color='red')
-                    plt.annotate(f'{peak_force_0_10:.2f} N', (peak_position, peak_force_0_10), textcoords="offset points", xytext=(10,-10), ha='center')
+                    # Mark the peak force in 0-15% range
+                    peak_position, peak_force_0_15 = calculate_peak_force_0_15(mean_curve, common_positions)
+                    plt.scatter(peak_position, peak_force_0_15, color='red')
+                    plt.annotate(f'{peak_force_0_15:.2f} N', (peak_position, peak_force_0_15), textcoords="offset points", xytext=(10,-10), ha='center')
 
             plt.title(f"Mean Force Curve across all subjects - {exercise}")
             plt.xlabel('Barbell Position (%)')
