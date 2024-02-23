@@ -195,14 +195,14 @@ def generate_combined_pdf(all_data, output_directory, dpi, resistance_types, col
                     # Plot mean force curves with standard deviation shading
                     for rt in pair:
                         positions, mean_curve, std_dev_curve = calculate_mean_std_force_curve(force_data_pair[rt])
-                        plot_with_std_dev(ax, positions, mean_curve, std_dev_curve, f'{rt} Mean', color_mapping[rt])
-                    
-                    # Mark the lowest position for 'squat' and 'bench' exercises
+                        plot_with_std_dev(ax, positions, mean_curve, std_dev_curve, f'{rt.capitalize()}', color_mapping[rt])
+                        
+                        # Mark the lowest position for 'squat' and 'bench' exercises
                         if exercise_name in ['squat', 'bench']:
                             min_value, min_position = mark_lowest_position_in_range(mean_curve, common_positions, 20, 60)
                             ax.scatter(min_position, min_value, color='black', zorder=5)  # Mark on the curve
-                        
-                    ax.set_title(f'Force {pair[0]} vs {pair[1]}')
+
+                    ax.set_title(f'Force {pair[0].capitalize()} vs {pair[1].capitalize()}')
                     ax.set_xlabel('Barbell Position (%)')
                     ax.set_ylabel('Force (N)')
                     ax.legend()
