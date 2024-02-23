@@ -148,8 +148,8 @@ def generate_velocity_plots(all_data, output_directory, dpi):
         for resistance_type, resistance_data in exercise_data.items():
             avg_velocity = calculate_average_velocity_curve(resistance_data, common_positions)
             # Use the color mapping for each resistance type
-            plt.plot(common_positions, avg_velocity, label=f'{resistance_type} Average', color=color_mapping[resistance_type])
-        plt.title(f'Velocity Curves - {exercise_name}')
+            plt.plot(common_positions, avg_velocity, label=f'{resistance_type.capitalize()}', color=color_mapping[resistance_type])
+        plt.title(f'Velocity Curves - {exercise_name.capitalize()}')
         plt.xlabel('Barbell Position (%)')
         plt.ylabel('Velocity (m/s)')
         plt.legend()
