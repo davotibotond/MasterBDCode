@@ -201,6 +201,14 @@ def generate_combined_pdf(all_data, output_directory, dpi, color_mapping):
                     t.plot_threshold_label(ax=ax_spm)
                     if any(p < 0.05 for p in t.p):  # Check if any p-value is significant
                         t.plot_p_values(ax=ax_spm)
+                
+                # Set y-axis limits based on the exercise name
+                    if exercise_name == 'squat':
+                        ax_mfc.set_ylim(0.4, 1.5)
+                    elif exercise_name == 'bench':
+                        ax_mfc.set_ylim(0.2, 1.4)
+                    elif exercise_name == 'row':
+                        ax_mfc.set_ylim(0.0, 1.7)
 
                 # Adjust layout and save the figure
                 plt.tight_layout(rect=[0, 0.03, 1, 0.95])
