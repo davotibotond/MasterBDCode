@@ -138,6 +138,16 @@ def calculate_average_curve(resistance_data, all_positions, freeweight_avg_force
     avg_force = np.mean(all_forces, axis=0)
     return avg_force / freeweight_avg_force if freeweight_avg_force else avg_force
 
+# Function to identify sticking regions in the exercises squat and bench press
+def mark_lowest_position_in_range(mean_curve, positions, start_pct, end_pct):
+    start_idx = int(start_pct / 100 * len(positions))
+    end_idx = int(end_pct / 100 * len(positions))
+    segment = mean_curve[start_idx:end_idx]
+    min_idx = np.argmin(segment) + start_idx
+    min_value = mean_curve[min_idx]
+    min_position = positions[min_idx]
+    return min_value, min_position
+
 # Function to generate and save combined PDFs with SPM analysis and normalized mean force curves
 def generate_combined_pdf(all_data, output_directory, dpi, color_mapping):
     common_positions = np.linspace(0, 100, num=1000)
@@ -201,6 +211,13 @@ def generate_combined_pdf(all_data, output_directory, dpi, color_mapping):
                     t.plot_threshold_label(ax=ax_spm)
                     if any(p < 0.05 for p in t.p):  # Check if any p-value is significant
                         t.plot_p_values(ax=ax_spm)
+            
+            # Mark the lowest position in the range for 'squat' and 'bench' exercises
+                    if exercise_name in ['squat', 'bench']:
+                        min_value1, min_position1 = mark_lowest_position_in_range(data1_mean, common_positions, 20, 60)
+                        min_value2, min_position2 = mark_lowest_position_in_range(data2_mean, common_positions, 20, 60)
+                        ax_mfc.scatter(min_position1, min_value1, color='black', zorder=5)  # Mark on first curve
+                        ax_mfc.scatter(min_position2, min_value2, color='black', zorder=5)  # Mark on second curve
                 
                 # Set y-axis limits based on the exercise name
                     if exercise_name == 'squat':
