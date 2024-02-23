@@ -206,7 +206,7 @@ def generate_combined_pdf(all_data, output_directory, dpi, color_mapping):
 
                     # Plot SPM t-test results
                     ax_spm = axs[1, i]
-                    ax_spm.set_title(f'SPM {pair[0]} vs {pair[1]}')
+                    ax_spm.set_title(f'SPM {pair[0].capitalize()} vs {pair[1].capitalize()}')
                     t.plot(ax=ax_spm)
                     t.plot_threshold_label(ax=ax_spm)
                     if any(p < 0.05 for p in t.p):  # Check if any p-value is significant
