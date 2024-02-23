@@ -118,7 +118,6 @@ def interpolate_data(data_list):
     return interpolated_data_list
 
 # Function to plot average power curve for each resistance type on the same graph
-# Function to plot average power curve for each resistance type on the same graph
 def plot_average_power_curves(exercise_data, output_directory, exercises):  
 
     for exercise in exercises:
@@ -130,7 +129,7 @@ def plot_average_power_curves(exercise_data, output_directory, exercises):
             mean_power = np.mean([data['Power'] for data in aggregated_data], axis=0)
             # Use the color mapping and line style for the resistance type
             ax.plot(aggregated_data[0]['Normalized position'], mean_power, 
-                    label=resistance_type,  
+                    label=resistance_type.capitalize(),  
                     color=color_mapping[resistance_type])
 
         ax.set_xlabel('Barbell position (%)')
