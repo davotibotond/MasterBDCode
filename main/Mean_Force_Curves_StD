@@ -16,7 +16,7 @@ import itertools
 ### Input variables
 sampling_frequency = 200  # Hz
 data_directory = './data'  # Update with the actual path to your data
-output_directory = "./outputs/SPM Analysis"  # Update with your desired output path
+output_directory = "./outputs/MeanForceCurveStD"  # Update with your desired output path
 resistance_types = ['freeweight', 'keiser', 'quantum', 'norse']
 dpi = 100
 
@@ -142,102 +142,62 @@ def plot_with_std_dev(ax, positions, mean_curve, std_dev_curve, label, color):
     ax.plot(positions, mean_curve, label=label, color=color)
     ax.fill_between(positions, mean_curve - std_dev_curve, mean_curve + std_dev_curve, color=color, alpha=0.2)
 
-# Function to generate and save combined SPM analysis and mean force curve plots
-def generate_combined_pdf(all_data, output_directory, dpi, resistance_types):
+# Function to generate and save PDFs with mean force curve plots
+def generate_combined_pdf(all_data, output_directory, dpi, resistance_types, color_mapping):
     common_positions = np.linspace(0, 100, num=100)  # Define common positions for interpolation
-    
+
     for exercise_name, exercise_data in all_data.items():
-        # Different pair sets for 'squat' vs 'bench' and 'row'
-        if exercise_name == 'squat':
-            pairs_sets = [[('freeweight', 'keiser'), ('freeweight', 'quantum'), ('keiser', 'quantum')]]
-        else:  # 'bench' and 'row'
-            pairs_sets = [
-                [('freeweight', 'keiser'), ('freeweight', 'norse'), ('freeweight', 'quantum')],
-                [('keiser', 'norse'), ('keiser', 'quantum'), ('quantum', 'norse')]
-            ]
-        
-        pdf_filename = f"{exercise_name}_combined_analysis.pdf"
+        pdf_filename = f"{exercise_name}_force_curves.pdf"
         pdf_path = os.path.join(output_directory, pdf_filename)
+
         with PdfPages(pdf_path) as pdf:
+            # Different pair sets for 'squat' vs 'bench' and 'row'
+            if exercise_name == 'squat':
+                pairs_sets = [[('freeweight', 'keiser'), ('freeweight', 'quantum'), ('keiser', 'quantum')]]
+            else:  # 'bench' and 'row'
+                pairs_sets = [
+                    [('freeweight', 'keiser'), ('freeweight', 'norse'), ('freeweight', 'quantum')],
+                    [('keiser', 'norse'), ('keiser', 'quantum'), ('quantum', 'norse')]
+                ]
+            
+            # Loop over each set of pairs and create a page for each
             for page, pairs in enumerate(pairs_sets):
-                fig, axs = plt.subplots(2, 3, figsize=(12, 8.5), gridspec_kw={'height_ratios': [1.0, 0.5]}, dpi=dpi)
-                fig.suptitle(f"{exercise_name.capitalize()} Analysis - Page {page + 1}")
+                fig, axs = plt.subplots(1, 3, figsize=(12, 4), dpi=dpi)  # One row with 3 subplots
+                fig.suptitle(f"{exercise_name.capitalize()} Force Curves - Page {page + 1}")
 
-                # Adjust horizontal spacing between the subplots
-                plt.subplots_adjust(wspace=0.5)  # Adjust this value to increase horizontal space
-                plt.subplots_adjust(hspace=0.5)  # Increase the vertical space between rows of subplots                
-
-                # Plotting the pairs
                 for i, pair in enumerate(pairs):
-                    ax_mfc = axs[0, i]
-                    ax_spm = axs[1, i]
-
-                    # Set y-axis limits based on the exercise name
-                    if exercise_name == 'squat':
-                        ax_mfc.set_ylim(1000, 2600)
-                    elif exercise_name == 'bench':
-                        ax_mfc.set_ylim(150, 1000)
-                    elif exercise_name == 'row':
-                        ax_mfc.set_ylim(100, 1100)
-
+                    ax = axs[i]
                     # Aggregate data for the current exercise across all subjects and modalities
                     force_data_pair = {rt: [] for rt in pair}
-                    for subject_num in range(1, 16):
-                        specific_subject = f'subject_{subject_num}'
-                        subject_path = os.path.join(data_directory, specific_subject)
+                    for subject_folder in os.listdir(data_directory):
+                        subject_path = os.path.join(data_directory, subject_folder)
                         if os.path.isdir(subject_path):
-                            exercise_path = os.path.join(subject_path, exercise_name)
-                            if os.path.isdir(exercise_path):
-                                for rt in pair:
-                                    resistance_path = os.path.join(exercise_path, rt)
-                                    if os.path.isdir(resistance_path):
-                                        for file_name in os.listdir(resistance_path):
-                                            if file_name.endswith('.csv'):
-                                                file_path = os.path.join(resistance_path, file_name)
-                                                df = pd.read_csv(file_path, delimiter=';', decimal=",")
-                                                processed_df = preprocess_and_select_data(df, term_mapping, sampling_frequency, exercise_name)
-                                                if processed_df is not None:
-                                                    force_data_pair[rt].append(processed_df['Barbell force (FP)'].values)
+                            for resistance_type in pair:
+                                resistance_path = os.path.join(subject_path, exercise_name, resistance_type)
+                                if os.path.isdir(resistance_path):
+                                    for file_name in os.listdir(resistance_path):
+                                        if file_name.endswith('.csv'):
+                                            file_path = os.path.join(resistance_path, file_name)
+                                            df = pd.read_csv(file_path, delimiter=';', decimal=",")
+                                            processed_df = preprocess_and_select_data(df, term_mapping, sampling_frequency, exercise_name)
+                                            if processed_df is not None:
+                                                force_data_pair[resistance_type].append(processed_df['Barbell force (FP)'].values)
                     
                     # Plot mean force curves with standard deviation shading
                     for rt in pair:
                         positions, mean_curve, std_dev_curve = calculate_mean_std_force_curve(force_data_pair[rt])
-                        if mean_curve.size > 0:
-                            plot_with_std_dev(ax_mfc, positions, mean_curve, std_dev_curve, f'{rt} Mean', color_mapping[rt])
-                            if exercise_name in ['squat', 'bench']:
-                                min_value, min_position = mark_lowest_position_in_range(mean_curve, positions, 20, 60)
-                                ax_mfc.scatter(min_position, min_value, color='black')  # Mark on the curve
+                        plot_with_std_dev(ax, positions, mean_curve, std_dev_curve, f'{rt} Mean', color_mapping[rt])
+                        
+                    ax.set_title(f'Force {pair[0]} vs {pair[1]}')
+                    ax.set_xlabel('Barbell Position (%)')
+                    ax.set_ylabel('Force (N)')
+                    ax.legend()
 
-                    ax_mfc.set_title(f'Force {pair[0]} vs {pair[1]}')
-                    ax_mfc.legend()
+                plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+                pdf.savefig(fig)
+                plt.close(fig)
 
-                     # Adding labels for x-axis and y-axis
-                    ax_mfc.set_xlabel('Barbell Position (%)')
-                    ax_mfc.set_ylabel('Force (N)')
+# Call the modified function
+generate_combined_pdf(all_data, output_directory, dpi, resistance_types, color_mapping)
 
-
-                    # Perform and plot SPM analysis in the second row
-                    ax_spm = axs[1, i % 3]
-                    data1 = force_data_pair[pair[0]]
-                    data2 = force_data_pair[pair[1]]
-                    spm_data1 = np.array([np.interp(common_positions, np.linspace(0, 100, len(d)), d) for d in data1])
-                    spm_data2 = np.array([np.interp(common_positions, np.linspace(0, 100, len(d)), d) for d in data2])
-
-                    if len(spm_data1) > 1 and len(spm_data2) > 1:
-                        spm_t = spm1d.stats.ttest2(spm_data1, spm_data2, equal_var=True).inference(0.05)
-                        spm_t.plot(ax=ax_spm)
-                        spm_t.plot_threshold_label(ax=ax_spm)
-                        # Check if any value in spm_t.p is less than 0.05
-                        if any(p_value < 0.05 for p_value in spm_t.p):
-                            spm_t.plot_p_values(ax=ax_spm)
-                        ax_spm.set_title(f'SPM {pair[0]} vs {pair[1]}')
-
-                pdf.savefig(fig)  # Save the current page
-                plt.close(fig)    # Close the figure to free memory
-            
-
-# Call the function to generate the PDFs
-# Assuming all_data is populated as per your existing logic
-generate_combined_pdf(all_data, output_directory, dpi, resistance_types)
-
-print("Combined PDF generation complete. Check the output directory for the PDFs.")
+print("PDF generation complete. Check the output directory for the PDFs.")
