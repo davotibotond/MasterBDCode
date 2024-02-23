@@ -195,10 +195,10 @@ def generate_combined_pdf(all_data, output_directory, dpi, color_mapping):
 
                     # Plot mean force curves with shaded standard deviation
                     ax_mfc = axs[0, i]
-                    ax_mfc.set_title(f'Force {pair[0]} vs {pair[1]}')
-                    ax_mfc.plot(common_positions, data1_mean, label=f'{pair[0]} Mean', color=color_mapping[pair[0]])
+                    ax_mfc.set_title(f'Force {pair[0].capitalize()} vs {pair[1].capitalize()}')
+                    ax_mfc.plot(common_positions, data1_mean, label=f'{pair[0].capitalize()}', color=color_mapping[pair[0]])
                     ax_mfc.fill_between(common_positions, data1_mean - data1_std, data1_mean + data1_std, alpha=0.2, color=color_mapping[pair[0]])
-                    ax_mfc.plot(common_positions, data2_mean, label=f'{pair[1]} Mean', color=color_mapping[pair[1]])
+                    ax_mfc.plot(common_positions, data2_mean, label=f'{pair[1].capitalize()}', color=color_mapping[pair[1]])
                     ax_mfc.fill_between(common_positions, data2_mean - data2_std, data2_mean + data2_std, alpha=0.2, color=color_mapping[pair[1]])
                     ax_mfc.legend()
                     ax_mfc.set_xlabel('Barbell Position (%)')
