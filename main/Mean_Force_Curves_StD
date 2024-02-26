@@ -147,8 +147,14 @@ def generate_combined_pdf(all_data, output_directory, dpi, resistance_types, col
     common_positions = np.linspace(0, 100, num=100)  # Define common positions for interpolation
 
     for exercise_name, exercise_data in all_data.items():
+        if exercise_name == 'row':  # Skip the 'row' exercise
+            continue
+
         pdf_filename = f"{exercise_name}_force_curves.pdf"
         pdf_path = os.path.join(output_directory, pdf_filename)
+
+        # Initialize dictionary to store all individual sticking region forces for each resistance type
+        sticking_region_forces = {rt: [] for rt in resistance_types}
 
         with PdfPages(pdf_path) as pdf:
             # Different pair sets for 'squat' vs 'bench' and 'row'
@@ -196,11 +202,17 @@ def generate_combined_pdf(all_data, output_directory, dpi, resistance_types, col
                     for rt in pair:
                         positions, mean_curve, std_dev_curve = calculate_mean_std_force_curve(force_data_pair[rt])
                         plot_with_std_dev(ax, positions, mean_curve, std_dev_curve, f'{rt.capitalize()}', color_mapping[rt])
-                        
-                        # Mark the lowest position for 'squat' and 'bench' exercises
+
+                        # Calculate and mark the lowest position for 'squat' and 'bench' exercises on the mean curve
                         if exercise_name in ['squat', 'bench']:
                             min_value, min_position = mark_lowest_position_in_range(mean_curve, common_positions, 20, 60)
-                            ax.scatter(min_position, min_value, color='black', zorder=5)  # Mark on the curve
+                            ax.scatter(min_position, min_value, color='black', zorder=5)  # Mark on the mean curve
+                            
+                            # Collect all individual lowest forces for standard deviation calculation
+                            for curve in force_data_pair[rt]:
+                                interpolated_curve = np.interp(common_positions, np.linspace(0, 100, len(curve)), curve)
+                                min_value_individual, _ = mark_lowest_position_in_range(interpolated_curve, common_positions, 20, 60)
+                                sticking_region_forces[rt].append(min_value_individual)
 
                     ax.set_title(f'Force {pair[0].capitalize()} vs {pair[1].capitalize()}')
                     ax.set_xlabel('Barbell Position (%)')
@@ -211,7 +223,15 @@ def generate_combined_pdf(all_data, output_directory, dpi, resistance_types, col
                 pdf.savefig(fig)
                 plt.close(fig)
 
+# Print and calculate the mean and standard deviation of all sticking region forces
+        for rt in resistance_types:
+            if sticking_region_forces[rt]:
+                mean_sticking_force = np.mean(sticking_region_forces[rt])
+                std_dev_sticking_force = np.std(sticking_region_forces[rt])
+                print(f"{exercise_name.capitalize()} - {rt}: Mean Sticking Region Force = {mean_sticking_force:.2f} N ± {std_dev_sticking_force:.2f}")
+
 # Call the modified function
 generate_combined_pdf(all_data, output_directory, dpi, resistance_types, color_mapping)
 
 print("PDF generation complete. Check the output directory for the PDFs.")
+
