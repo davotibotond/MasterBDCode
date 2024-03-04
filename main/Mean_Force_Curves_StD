@@ -127,6 +127,16 @@ def mark_lowest_position_in_range(mean_curve, positions, start_pct, end_pct):
     min_position = positions[min_idx]
     return min_value, min_position
 
+# Function to identify the peak forces in the curves
+def mark_highest_position_in_range(mean_curve, positions, start_pct, end_pct):
+    start_idx = int(start_pct / 100 * len(positions))
+    end_idx = int(end_pct / 100 * len(positions))
+    segment = mean_curve[start_idx:end_idx]
+    max_idx = np.argmax(segment) + start_idx
+    max_value = mean_curve[max_idx]
+    max_position = positions[max_idx]
+    return max_value, max_position
+
 # Function to calculate mean and standard deviation force curves
 def calculate_mean_std_force_curve(force_data):
     common_positions = np.linspace(0, 100, num=100)
@@ -147,13 +157,10 @@ def generate_combined_pdf(all_data, output_directory, dpi, resistance_types, col
     common_positions = np.linspace(0, 100, num=100)  # Define common positions for interpolation
 
     for exercise_name, exercise_data in all_data.items():
-        if exercise_name == 'row':  # Skip the 'row' exercise
-            continue
-
         pdf_filename = f"{exercise_name}_force_curves.pdf"
         pdf_path = os.path.join(output_directory, pdf_filename)
 
-        # Initialize dictionary to store all individual sticking region forces for each resistance type
+        # Initialize the dictionary here to ensure it's reset for each exercise
         sticking_region_forces = {rt: [] for rt in resistance_types}
 
         with PdfPages(pdf_path) as pdf:
@@ -203,13 +210,18 @@ def generate_combined_pdf(all_data, output_directory, dpi, resistance_types, col
                         positions, mean_curve, std_dev_curve = calculate_mean_std_force_curve(force_data_pair[rt])
                         plot_with_std_dev(ax, positions, mean_curve, std_dev_curve, f'{rt.capitalize()}', color_mapping[rt])
 
-                        # Calculate and mark the lowest position for 'squat' and 'bench' exercises on the mean curve
+                        # Conditionally mark the lowest position for 'squat' and 'bench' exercises, skipping 'row'
                         if exercise_name in ['squat', 'bench']:
-                            min_value, min_position = mark_lowest_position_in_range(mean_curve, common_positions, 20, 60)
-                            ax.scatter(min_position, min_value, color='black', zorder=5)  # Mark on the mean curve
+                            min_value, min_position = mark_lowest_position_in_range(mean_curve, positions, 20, 60)
+                            ax.scatter(min_position, min_value, color='black', zorder=5)
+
+                       # Mark the highest position on the force curve for all exercises
+                        max_value, max_position = mark_highest_position_in_range(mean_curve, positions, 0, 100)
+                        ax.scatter(max_position, max_value, color='red', zorder=5)
+                        ax.annotate(f'{max_value:.2f} N', (max_position, max_value), textcoords="offset points", xytext=(0,10), ha='center')
                             
-                            # Collect all individual lowest forces for standard deviation calculation
-                            for curve in force_data_pair[rt]:
+                        # Collect all individual lowest forces for standard deviation calculation
+                        for curve in force_data_pair[rt]:
                                 interpolated_curve = np.interp(common_positions, np.linspace(0, 100, len(curve)), curve)
                                 min_value_individual, _ = mark_lowest_position_in_range(interpolated_curve, common_positions, 20, 60)
                                 sticking_region_forces[rt].append(min_value_individual)
