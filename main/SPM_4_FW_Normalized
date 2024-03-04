@@ -202,7 +202,7 @@ def generate_combined_pdf(all_data, output_directory, dpi, color_mapping):
                     ax_mfc.fill_between(common_positions, data2_mean - data2_std, data2_mean + data2_std, alpha=0.2, color=color_mapping[pair[1]])
                     ax_mfc.legend()
                     ax_mfc.set_xlabel('Barbell Position (%)')
-                    ax_mfc.set_ylabel('Normalized Force (FP)')
+                    ax_mfc.set_ylabel('Normalized Force (Ratio)')
 
                     # Plot SPM t-test results
                     ax_spm = axs[1, i]
