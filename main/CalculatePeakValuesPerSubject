@@ -318,6 +318,42 @@ for modality in all_exercise_modalities:
     print(f"Overall Average Mean Force for {modality}: {mean_average:.2f} N ± {mean_std_dev:.2f}")
     print(f"Overall Average Sticking Region Force 20-60% for {modality}: {sticking_region_average:.2f} N ± {sticking_region_std_dev:.2f}")
 
+from scipy import stats
+
+#T-test for each exercise, metric, and comparison modality
+# Define the exercises and their corresponding resistance types
+exercises = ['bench', 'squat', 'row']
+resistance_types = ['freeweight', 'keiser', 'quantum', 'norse']
+
+# Define the metrics to be compared
+metrics = ['peak_0_15', 'sticking_region', 'mean', 'peak_0_100']
+
+# Define the comparison modalities
+comparison_modalities = ['keiser', 'quantum', 'norse']
+
+# For each exercise
+for exercise in exercises:
+    # For each metric
+    for metric in metrics:
+        # Get the freeweight data
+        freeweight_data = [subject_modality_averages[subject].get(f"{exercise}_freeweight", 0) for subject in subject_modality_averages if f"{exercise}_freeweight" in subject_modality_averages[subject]]
+        freeweight_data = [v for v in freeweight_data if v > 0]  # Filter out invalid values
+
+        # For each comparison modality
+        for comparison_modality in comparison_modalities:
+            # Skip the norse modality for the squat exercise
+            if exercise == 'squat' and comparison_modality == 'norse':
+                continue
+
+            # Get the comparison modality data
+            comparison_modality_data = [subject_modality_averages[subject].get(f"{exercise}_{comparison_modality}", 0) for subject in subject_modality_averages if f"{exercise}_{comparison_modality}" in subject_modality_averages[subject]]
+            comparison_modality_data = [v for v in comparison_modality_data if v > 0]  # Filter out invalid values
+
+            # Perform the t-test
+            t_stat, p_val = stats.ttest_ind(freeweight_data, comparison_modality_data)
+
+            # Print the results
+            print(f"T-test results for {exercise}, {metric}, freeweight vs {comparison_modality}: t = {t_stat:.2f}, p = {p_val:.2f}")
 
 # Function to calculate mean force curve and peak force in 0-15% range
 def calculate_mean_force_curve(force_data):
