@@ -338,6 +338,8 @@ for exercise in exercises:
         # Get the freeweight data
         freeweight_data = [subject_modality_averages[subject].get(f"{exercise}_freeweight", 0) for subject in subject_modality_averages if f"{exercise}_freeweight" in subject_modality_averages[subject]]
         freeweight_data = [v for v in freeweight_data if v > 0]  # Filter out invalid values
+        print("\nFreeweight data for {exercise}:")  # Print a newline and the exercise
+        print(freeweight_data)  # Print the freeweight data
 
         # For each comparison modality
         for comparison_modality in comparison_modalities:
@@ -348,15 +350,16 @@ for exercise in exercises:
             # Get the comparison modality data
             comparison_modality_data = [subject_modality_averages[subject].get(f"{exercise}_{comparison_modality}", 0) for subject in subject_modality_averages if f"{exercise}_{comparison_modality}" in subject_modality_averages[subject]]
             comparison_modality_data = [v for v in comparison_modality_data if v > 0]  # Filter out invalid values
+            print(f"\n{comparison_modality} data for {exercise}:")  # Print a newline and the comparison modality
+            print(comparison_modality_data)  # Print the comparison modality data
 
             # Perform the t-test
             t_stat, p_val = stats.ttest_ind(freeweight_data, comparison_modality_data)
-
-            # Check if the result is statistically significant
             significance = "Statistically significant" if p_val < 0.05 else "Not statistically significant"
 
-            # Print the results with 8 decimal places for the p-value
-            print(f"T-test results for {exercise}, {metric}, freeweight vs {comparison_modality}: t = {t_stat:.2f}, p = {p_val:.8f} ({significance})")
+            # Print the results with 4 decimal places for the p-value
+            print(f"\nT-test results for {exercise}, {metric}, freeweight vs {comparison_modality}: t = {t_stat:.2f}, p = {p_val:.4f} ({significance})\n")
+            print("-" * 50)  # Print a separator
 
 # Function to calculate mean force curve and peak force in 0-15% range
 def calculate_mean_force_curve(force_data):
