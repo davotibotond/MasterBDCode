@@ -160,8 +160,11 @@ def generate_combined_pdf(all_data, output_directory, dpi, resistance_types, col
         pdf_filename = f"{exercise_name}_force_curves.pdf"
         pdf_path = os.path.join(output_directory, pdf_filename)
 
-        # Initialize the dictionary here to ensure it's reset for each exercise
-        sticking_region_forces = {rt: [] for rt in resistance_types}
+        # Initialize dictionaries to store mean and individual forces
+        mean_peak_forces = {rt: [] for rt in resistance_types}
+        mean_sticking_region_forces = {rt: [] for rt in resistance_types}
+        individual_peak_forces = {rt: [] for rt in resistance_types}
+        individual_sticking_region_forces = {rt: [] for rt in resistance_types} 
 
         with PdfPages(pdf_path) as pdf:
             # Different pair sets for 'squat' vs 'bench' and 'row'
@@ -213,18 +216,25 @@ def generate_combined_pdf(all_data, output_directory, dpi, resistance_types, col
                         # Conditionally mark the lowest position for 'squat' and 'bench' exercises, skipping 'row'
                         if exercise_name in ['squat', 'bench']:
                             min_value, min_position = mark_lowest_position_in_range(mean_curve, positions, 20, 60)
+                            mean_sticking_region_forces[rt].append(min_value)
                             ax.scatter(min_position, min_value, color='black', zorder=5)
-
-                       # Mark the highest position on the force curve for all exercises
+                            ax.annotate(f'{min_value:.2f} N', (min_position, min_value), textcoords="offset points", xytext=(0,10), ha='center')
+                       
+                       # Mark the highest position on the mean force curve for all exercises
                         max_value, max_position = mark_highest_position_in_range(mean_curve, positions, 0, 100)
+                        mean_peak_forces[rt].append(max_value)
                         ax.scatter(max_position, max_value, color='red', zorder=5)
                         ax.annotate(f'{max_value:.2f} N', (max_position, max_value), textcoords="offset points", xytext=(0,10), ha='center')
                             
-                        # Collect all individual lowest forces for standard deviation calculation
+                        # Collect all individual highest and lowest forces for standard deviation calculation
                         for curve in force_data_pair[rt]:
-                                interpolated_curve = np.interp(common_positions, np.linspace(0, 100, len(curve)), curve)
+                            interpolated_curve = np.interp(common_positions, np.linspace(0, 100, len(curve)), curve)
+                            max_value_individual, _ = mark_highest_position_in_range(interpolated_curve, common_positions, 0, 100)
+                            individual_peak_forces[rt].append(max_value_individual)
+
+                            if exercise_name in ['squat', 'bench']:
                                 min_value_individual, _ = mark_lowest_position_in_range(interpolated_curve, common_positions, 20, 60)
-                                sticking_region_forces[rt].append(min_value_individual)
+                                individual_sticking_region_forces[rt].append(min_value_individual)
 
                     ax.set_title(f'Force {pair[0].capitalize()} vs {pair[1].capitalize()}')
                     ax.set_xlabel('Barbell Position (%)')
@@ -235,11 +245,17 @@ def generate_combined_pdf(all_data, output_directory, dpi, resistance_types, col
                 pdf.savefig(fig)
                 plt.close(fig)
 
-# Print and calculate the mean and standard deviation of all sticking region forces
+# Calculate and print the mean and standard deviation of all peak forces
         for rt in resistance_types:
-            if sticking_region_forces[rt]:
-                mean_sticking_force = np.mean(sticking_region_forces[rt])
-                std_dev_sticking_force = np.std(sticking_region_forces[rt])
+            mean_peak_force = np.mean(mean_peak_forces[rt])
+            std_dev_peak_force = np.std([force - mean_peak_force for force in individual_peak_forces[rt]])
+            print(f"{exercise_name.capitalize()} - {rt}: Mean Peak Force = {mean_peak_force:.2f} N ± {std_dev_peak_force:.2f}")
+
+        # Calculate and print the mean and standard deviation of all sticking region forces
+        for rt in resistance_types:
+            if exercise_name in ['squat', 'bench']:
+                mean_sticking_force = np.mean(mean_sticking_region_forces[rt])
+                std_dev_sticking_force = np.std([force - mean_sticking_force for force in individual_sticking_region_forces[rt]])
                 print(f"{exercise_name.capitalize()} - {rt}: Mean Sticking Region Force = {mean_sticking_force:.2f} N ± {std_dev_sticking_force:.2f}")
 
 # Call the modified function
