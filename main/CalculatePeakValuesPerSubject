@@ -176,6 +176,10 @@ def plot_rep_force_curves(rep_data, output_directory, dpi, exercise_modality, sp
             plt.scatter(peak_position, peak_force_0_100, color='red')
             plt.annotate(f'{peak_force_0_100:.2f} N', (peak_position, peak_force_0_100), textcoords="offset points", xytext=(10,-10), ha='center')
 
+            # Mark sticking region force on the plot
+            plt.scatter(sticking_position, sticking_region_force, color='blue')
+            plt.annotate(f'{sticking_region_force:.2f} N', (sticking_position, sticking_region_force), textcoords="offset points", xytext=(10,-10), ha='center')
+
             plt.title(f"Force Curve for {specific_subject} - {exercise_modality} - Rep {rep_number+1}")
             plt.xlabel('Barbell Position (%)')
             plt.ylabel('Force (N)')
