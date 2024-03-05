@@ -92,6 +92,18 @@ def calculate_peak_force_0_100(curve, positions):
     peak_position = positions[np.argmax(curve[positions <= 100])]
     return peak_position, peak_force_0_100
 
+# Function to calculate the lowest force in 20-60% range for a single curve
+def calculate_sticking_region_forces(curve, positions):
+    # Filter the curve and positions to only include the 20-60% range
+    filtered_curve = curve[(positions >= 20) & (positions <= 60)]
+    filtered_positions = positions[(positions >= 20) & (positions <= 60)]
+    
+    # Calculate the lowest force and its position
+    sticking_region_force = np.min(filtered_curve)
+    sticking_position = filtered_positions[np.argmin(filtered_curve)]
+    
+    return sticking_position, sticking_region_force
+
 # Function to calculate and plot the average force curve
 def plot_average_force_curve(rep_data, output_directory, dpi, exercise_modality, specific_subject, pdf):
     common_positions = np.linspace(0, 100, num=100)
@@ -105,6 +117,11 @@ def plot_average_force_curve(rep_data, output_directory, dpi, exercise_modality,
     peak_position, peak_average_force_0_15 = calculate_peak_force_0_15(mean_curve, common_positions)
     plt.scatter(peak_position, peak_average_force_0_15, color='red')
     plt.annotate(f'{peak_average_force_0_15:.2f} N', (peak_position, peak_average_force_0_15), textcoords="offset points", xytext=(10,-10), ha='center')
+
+    # Calculate and mark lowest average force in 20-60% range
+    sticking_position, lowest_average_force_20_60 = calculate_sticking_region_forces(mean_curve, common_positions)
+    plt.scatter(sticking_position, lowest_average_force_20_60, color='red')
+    plt.annotate(f'{lowest_average_force_20_60:.2f} N', (sticking_position, lowest_average_force_20_60), textcoords="offset points", xytext=(10,-10), ha='center')
 
     # Calculate and mark peak average force in 0-100% range
     peak_position, peak_average_force_0_100 = calculate_peak_force_0_100(mean_curve, common_positions)
@@ -127,6 +144,7 @@ def plot_rep_force_curves(rep_data, output_directory, dpi, exercise_modality, sp
     peak_forces_15 = []  # List to store peak forces in the 0-15% for each rep
     mean_forces = []  # List to store mean forces for each rep
     peak_forces_100 = []  # List to store peak forces in the 0-100% for each rep
+    sticking_region_forces = []  # List to store sticking region forces for each rep
 
     with PdfPages(pdf_path) as pdf:
         for rep_number, curve in enumerate(rep_data):
@@ -141,6 +159,10 @@ def plot_rep_force_curves(rep_data, output_directory, dpi, exercise_modality, sp
             # Calculate and store peak force in 0-100% range
             peak_position, peak_force_0_100 = calculate_peak_force_0_100(curve, positions)
             peak_forces_100.append(peak_force_0_100)
+
+            # Calculate and store lowest force in 20-60% range
+            sticking_position, sticking_region_force = calculate_sticking_region_forces(curve, positions)
+            sticking_region_forces.append(sticking_region_force)
             
             # Calculate and store mean force
             mean_force = np.mean(curve)
@@ -166,26 +188,29 @@ def plot_rep_force_curves(rep_data, output_directory, dpi, exercise_modality, sp
             # Print mean force for each rep
             print(f"Subject {specific_subject}, {exercise_modality}, Rep {rep_number+1}: Mean Force = {mean_force:.2f} N")
 
-        # Calculate and print the average peak force and mean force
+        # Calculate and print the average peak force, mean force, and sticking region force
         average_peak_force_15 = np.mean(peak_forces_15)
         average_mean_force = np.mean(mean_forces)
         average_peak_force_100 = np.mean(peak_forces_100)
+        average_sticking_region_force = np.mean(sticking_region_forces)
         print(f"Subject {specific_subject}, {exercise_modality}: "
             f"Average Peak Force 0-15% = {average_peak_force_15:.2f} N, "
             f"Average Peak Force 0-100% = {average_peak_force_100:.2f} N, "
-            f"Average Mean Force = {average_mean_force:.2f} N")
+            f"Average Mean Force = {average_mean_force:.2f} N, "
+            f"Average Sticking Region Force 20-60% = {average_sticking_region_force:.2f} N")
         
 
         # Plot the average curve
         plot_average_force_curve(rep_data, output_directory, dpi, exercise_modality, specific_subject, pdf)
 
-    return peak_forces_15, mean_forces,peak_forces_100
+    return peak_forces_15, mean_forces,peak_forces_100, sticking_region_forces
 
 
 # Initialize dictionaries to store averages and standard deviations
 subject_modality_averages = {}  # Dictionary to store average peak forces per subject per modality
 subject_modality_mean_forces = {}  # Dictionary to store average mean forces per subject per modality
 subject_modality_peak_forces_0_100 = {}  # Dictionary to store peak forces for 0-100% per subject per modality
+subject_modality_sticking_region_forces = {}  # Dictionary to store average sticking region forces per subject per modality
 
 for subject_num in range(1, 16):
     specific_subject = f'subject_{subject_num}'
@@ -195,6 +220,7 @@ for subject_num in range(1, 16):
         subject_modality_averages[specific_subject] = {}
         subject_modality_mean_forces[specific_subject] = {}
         subject_modality_peak_forces_0_100[specific_subject] = {}  # Initialize dictionary for 0-100% peak forces
+        subject_modality_sticking_region_forces[specific_subject] = {}  # Initialize dictionary for sticking region forces
 
         for exercise_folder in os.listdir(subject_path):
             exercise_path = os.path.join(subject_path, exercise_folder)
@@ -216,17 +242,19 @@ for subject_num in range(1, 16):
 
                         if rep_data:
                             exercise_modality = f"{exercise_name}_{resistance_type}"
-                            peak_forces_15, mean_forces, peak_forces_100 = plot_rep_force_curves(rep_data, output_directory, dpi, exercise_modality, specific_subject)
+                            peak_forces_15, mean_forces, peak_forces_100, sticking_region_forces = plot_rep_force_curves(rep_data, output_directory, dpi, exercise_modality, specific_subject)
 
-                            # Calculate and store the average peak force, mean force, and 0-100% peak force for this subject and modality
-                            if peak_forces_15 and mean_forces and peak_forces_100:
+                            # Calculate and store the average peak force, mean force, 0-100% peak force, and sticking region force for this subject and modality
+                            if peak_forces_15 and mean_forces and peak_forces_100 and sticking_region_forces:
                                 average_peak_force_15 = np.mean(peak_forces_15)
                                 average_mean_force = np.mean(mean_forces)
                                 average_peak_force_100 = np.mean(peak_forces_100)
+                                average_sticking_region_force = np.mean(sticking_region_forces)
                                 subject_modality_averages[specific_subject][exercise_modality] = average_peak_force_15
                                 subject_modality_mean_forces[specific_subject][exercise_modality] = average_mean_force
                                 subject_modality_peak_forces_0_100[specific_subject][exercise_modality] = average_peak_force_100
-                                print(f"Subject {specific_subject}, {exercise_modality}: Average Peak Force 0-15% = {average_peak_force_15:.2f} N, Average Peak Force 0-100% = {average_peak_force_100:.2f} N, Average Mean Force = {average_mean_force:.2f} N")
+                                subject_modality_sticking_region_forces[specific_subject][exercise_modality] = average_sticking_region_force
+                                print(f"Subject {specific_subject}, {exercise_modality}: Average Peak Force 0-15% = {average_peak_force_15:.2f} N, Average Peak Force 0-100% = {average_peak_force_100:.2f} N, Average Mean Force = {average_mean_force:.2f} N, Average Sticking Region Force 20-60% = {average_sticking_region_force:.2f} N")
 
 # Define all exercise modalities
 all_exercise_modalities = [f"{exercise}_{resistance}" for exercise in ['bench', 'squat', 'row'] for resistance in resistance_types]
@@ -238,6 +266,14 @@ overall_modality_peak_std_devs = {modality: 0 for modality in all_exercise_modal
 # Compute and print overall averages and standard deviations for 0-100% peak forces for each exercise modality
 overall_modality_peak_0_100_averages = {modality: 0 for modality in all_exercise_modalities}
 overall_modality_peak_0_100_std_devs = {modality: 0 for modality in all_exercise_modalities}
+
+# Compute and print overall averages and standard deviations for mean forces for each exercise modality
+overall_modality_mean_averages = {modality: 0 for modality in all_exercise_modalities}
+overall_modality_mean_std_devs = {modality: 0 for modality in all_exercise_modalities}
+
+# Compute and print overall averages and standard deviations for sticking region forces for each exercise modality
+overall_modality_sticking_region_averages = {modality: 0 for modality in all_exercise_modalities}
+overall_modality_sticking_region_std_devs = {modality: 0 for modality in all_exercise_modalities}
 
 for modality in all_exercise_modalities:
     modality_peak_values = [subject_modality_averages[subject].get(modality, 0) for subject in subject_modality_averages if modality in subject_modality_averages[subject]]
@@ -251,17 +287,19 @@ for modality in all_exercise_modalities:
     overall_modality_peak_0_100_averages[modality] = np.mean(valid_peak_0_100_values)
     overall_modality_peak_0_100_std_devs[modality] = np.std(valid_peak_0_100_values)
 
-# Compute and print overall averages and standard deviations for mean forces for each exercise modality
-overall_modality_mean_averages = {modality: 0 for modality in all_exercise_modalities}
-overall_modality_mean_std_devs = {modality: 0 for modality in all_exercise_modalities}
-
-for modality in all_exercise_modalities:
+    # Calculate overall averages and standard deviations for mean forces
     modality_mean_values = [subject_modality_mean_forces[subject].get(modality, 0) for subject in subject_modality_mean_forces if modality in subject_modality_mean_forces[subject]]
     valid_mean_values = [v for v in modality_mean_values if v > 0]  # Filter out invalid values
     overall_modality_mean_averages[modality] = np.mean(valid_mean_values)
     overall_modality_mean_std_devs[modality] = np.std(valid_mean_values)
 
-# Print Overall Average Peak Force 0-15%, Peak Force 0-100% and Mean Force for each modality
+    # Calculate overall averages and standard deviations for sticking region forces
+    modality_sticking_region_values = [subject_modality_sticking_region_forces[subject].get(modality, 0) for subject in subject_modality_sticking_region_forces if modality in subject_modality_sticking_region_forces[subject]]
+    valid_sticking_region_values = [v for v in modality_sticking_region_values if v > 0]  # Filter out invalid values
+    overall_modality_sticking_region_averages[modality] = np.mean(valid_sticking_region_values)
+    overall_modality_sticking_region_std_devs[modality] = np.std(valid_sticking_region_values)
+
+# Print Overall Average Peak Force 0-15%, Peak Force 0-100%, Mean Force, and Sticking Region Force for each modality
 for modality in all_exercise_modalities:
     peak_average = overall_modality_peak_averages[modality]
     peak_std_dev = overall_modality_peak_std_devs[modality]
@@ -269,9 +307,12 @@ for modality in all_exercise_modalities:
     peak_0_100_std_dev = overall_modality_peak_0_100_std_devs[modality]
     mean_average = overall_modality_mean_averages[modality]
     mean_std_dev = overall_modality_mean_std_devs[modality]
+    sticking_region_average = overall_modality_sticking_region_averages[modality]
+    sticking_region_std_dev = overall_modality_sticking_region_std_devs[modality]
     print(f"Overall Average Peak Force 0-15% for {modality}: {peak_average:.2f} N ± {peak_std_dev:.2f}")
     print(f"Overall Average Peak Force 0-100% for {modality}: {peak_0_100_average:.2f} N ± {peak_0_100_std_dev:.2f}")
     print(f"Overall Average Mean Force for {modality}: {mean_average:.2f} N ± {mean_std_dev:.2f}")
+    print(f"Overall Average Sticking Region Force 20-60% for {modality}: {sticking_region_average:.2f} N ± {sticking_region_std_dev:.2f}")
 
 
 # Function to calculate mean force curve and peak force in 0-15% range
