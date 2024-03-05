@@ -352,8 +352,11 @@ for exercise in exercises:
             # Perform the t-test
             t_stat, p_val = stats.ttest_ind(freeweight_data, comparison_modality_data)
 
-            # Print the results
-            print(f"T-test results for {exercise}, {metric}, freeweight vs {comparison_modality}: t = {t_stat:.2f}, p = {p_val:.2f}")
+            # Check if the result is statistically significant
+            significance = "Statistically significant" if p_val < 0.05 else "Not statistically significant"
+
+            # Print the results with 8 decimal places for the p-value
+            print(f"T-test results for {exercise}, {metric}, freeweight vs {comparison_modality}: t = {t_stat:.2f}, p = {p_val:.8f} ({significance})")
 
 # Function to calculate mean force curve and peak force in 0-15% range
 def calculate_mean_force_curve(force_data):
