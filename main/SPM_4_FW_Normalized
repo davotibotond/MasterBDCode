@@ -148,6 +148,45 @@ def mark_lowest_position_in_range(mean_curve, positions, start_pct, end_pct):
     min_position = positions[min_idx]
     return min_value, min_position
 
+# Calculate sticking region SD both vertically and horizontally for each resistance type - not correct yet --------------------------------------
+def calculate_sticking_region_data(all_data):
+    results = {}
+    freeweight_forces = {}
+
+    # First, calculate the average freeweight force for each exercise
+    for exercise, exercise_data in all_data.items():
+        freeweight_data = exercise_data.get('freeweight')
+        if freeweight_data:
+            all_sticking_region_forces = []
+            for df_con_phase in freeweight_data.values():
+                min_force, _ = mark_lowest_position_in_range(df_con_phase['Barbell force (FP)'].values, df_con_phase['Barbell position'].values, 20, 60)
+                all_sticking_region_forces.append(min_force)
+            freeweight_forces[exercise] = np.mean(all_sticking_region_forces)
+
+    # Then, calculate the mean and standard deviation of the forces and positions for each resistance type, normalized by the freeweight force
+    for exercise, exercise_data in all_data.items():
+        for resistance_type, resistance_data in exercise_data.items():
+            all_sticking_region_forces = []
+            all_sticking_region_positions = []
+
+            for df_con_phase in resistance_data.values():
+                min_force, min_position = mark_lowest_position_in_range(df_con_phase['Barbell force (FP)'].values, df_con_phase['Barbell position'].values, 20, 60)
+                all_sticking_region_forces.append(min_force / freeweight_forces[exercise])
+                all_sticking_region_positions.append(min_position)
+
+            std_force = np.std(all_sticking_region_forces)
+            std_position = np.std(all_sticking_region_positions)
+
+            results[f"{exercise}_{resistance_type}"] = (np.mean(all_sticking_region_forces), std_force, np.mean(all_sticking_region_positions), std_position)
+
+    return results
+
+results = calculate_sticking_region_data(all_data)
+for key, (mean_force, std_force, mean_position, std_position) in results.items():
+    print(f"{key}: Mean force: {mean_force} +- {std_force}, Mean position: {mean_position} +- {std_position}")
+
+# End of function for sticking region SD calculation - not correct yet --------------------------------------
+
 # Function to generate and save combined PDFs with SPM analysis and normalized mean force curves
 def generate_combined_pdf(all_data, output_directory, dpi, color_mapping):
     common_positions = np.linspace(0, 100, num=1000)
