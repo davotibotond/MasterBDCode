@@ -4,6 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 import numpy as np
+from scipy.stats import shapiro
 
 ### Input variables
 data_directory = './data'  # Update with the actual path to your data
@@ -30,6 +31,7 @@ term_mapping = {
     'Stang velocity': 'Barbell velocity',
     'Stang force (FP)': 'Barbell force (FP)',
 }
+
 
 # Function to preprocess and select valid data with specific handling for different exercises
 def preprocess_and_select_data(df, term_mapping, sampling_frequency, exercise_name):
@@ -211,10 +213,10 @@ def plot_rep_force_curves(rep_data, output_directory, dpi, exercise_modality, sp
 
 
 # Initialize dictionaries to store averages and standard deviations
-subject_modality_averages = {}  # Dictionary to store average peak forces per subject per modality
-subject_modality_mean_forces = {}  # Dictionary to store average mean forces per subject per modality
-subject_modality_peak_forces_0_100 = {}  # Dictionary to store peak forces for 0-100% per subject per modality
-subject_modality_sticking_region_forces = {}  # Dictionary to store average sticking region forces per subject per modality
+subject_modality_averages = {}
+subject_modality_mean_forces = {}
+subject_modality_peak_forces_0_100 = {}
+subject_modality_sticking_region_forces = {}
 
 for subject_num in range(1, 16):
     specific_subject = f'subject_{subject_num}'
@@ -223,8 +225,8 @@ for subject_num in range(1, 16):
     if os.path.isdir(subject_path):
         subject_modality_averages[specific_subject] = {}
         subject_modality_mean_forces[specific_subject] = {}
-        subject_modality_peak_forces_0_100[specific_subject] = {}  # Initialize dictionary for 0-100% peak forces
-        subject_modality_sticking_region_forces[specific_subject] = {}  # Initialize dictionary for sticking region forces
+        subject_modality_peak_forces_0_100[specific_subject] = {}
+        subject_modality_sticking_region_forces[specific_subject] = {}
 
         for exercise_folder in os.listdir(subject_path):
             exercise_path = os.path.join(subject_path, exercise_folder)
@@ -248,118 +250,127 @@ for subject_num in range(1, 16):
                             exercise_modality = f"{exercise_name}_{resistance_type}"
                             peak_forces_15, mean_forces, peak_forces_100, sticking_region_forces = plot_rep_force_curves(rep_data, output_directory, dpi, exercise_modality, specific_subject)
 
-                            # Calculate and store the average peak force, mean force, 0-100% peak force, and sticking region force for this subject and modality
-                            if peak_forces_15 and mean_forces and peak_forces_100 and sticking_region_forces:
-                                average_peak_force_15 = np.mean(peak_forces_15)
-                                average_mean_force = np.mean(mean_forces)
-                                average_peak_force_100 = np.mean(peak_forces_100)
-                                average_sticking_region_force = np.mean(sticking_region_forces)
-                                subject_modality_averages[specific_subject][exercise_modality] = average_peak_force_15
-                                subject_modality_mean_forces[specific_subject][exercise_modality] = average_mean_force
-                                subject_modality_peak_forces_0_100[specific_subject][exercise_modality] = average_peak_force_100
-                                subject_modality_sticking_region_forces[specific_subject][exercise_modality] = average_sticking_region_force
-                                print(f"Subject {specific_subject}, {exercise_modality}: Average Peak Force 0-15% = {average_peak_force_15:.2f} N, Average Peak Force 0-100% = {average_peak_force_100:.2f} N, Average Mean Force = {average_mean_force:.2f} N, Average Sticking Region Force 20-60% = {average_sticking_region_force:.2f} N")
+                            # Calculate and store the average metrics for this subject and modality
+                            average_peak_force_15 = np.mean(peak_forces_15)
+                            average_mean_force = np.mean(mean_forces)
+                            average_peak_force_100 = np.mean(peak_forces_100)
+                            average_sticking_region_force = np.mean(sticking_region_forces)
+
+                            # Store the raw averages for later normalization
+                            subject_modality_averages[specific_subject][exercise_modality] = average_peak_force_15
+                            subject_modality_peak_forces_0_100[specific_subject][exercise_modality] = average_peak_force_100
+                            subject_modality_sticking_region_forces[specific_subject][exercise_modality] = average_sticking_region_force
+                            subject_modality_mean_forces[specific_subject][exercise_modality] = average_mean_force
 
 # Define all exercise modalities
 all_exercise_modalities = [f"{exercise}_{resistance}" for exercise in ['bench', 'squat', 'row'] for resistance in resistance_types]
 
-# Compute and print overall averages and standard deviations for peak forces for each exercise modality
+# Initialize dictionaries for overall statistics
 overall_modality_peak_averages = {modality: 0 for modality in all_exercise_modalities}
 overall_modality_peak_std_devs = {modality: 0 for modality in all_exercise_modalities}
-
-# Compute and print overall averages and standard deviations for 0-100% peak forces for each exercise modality
 overall_modality_peak_0_100_averages = {modality: 0 for modality in all_exercise_modalities}
 overall_modality_peak_0_100_std_devs = {modality: 0 for modality in all_exercise_modalities}
-
-# Compute and print overall averages and standard deviations for mean forces for each exercise modality
 overall_modality_mean_averages = {modality: 0 for modality in all_exercise_modalities}
 overall_modality_mean_std_devs = {modality: 0 for modality in all_exercise_modalities}
-
-# Compute and print overall averages and standard deviations for sticking region forces for each exercise modality
 overall_modality_sticking_region_averages = {modality: 0 for modality in all_exercise_modalities}
 overall_modality_sticking_region_std_devs = {modality: 0 for modality in all_exercise_modalities}
 
+# Set grand mean of freeweight average force for each exercise
+grand_mean_freeweight_forces = {
+    'bench': 683,
+    'squat': 1807,
+    'row': 605
+}
+
+# Normalize metrics by the corresponding freeweight grand mean
+for subject in subject_modality_mean_forces:
+    for modality, mean_force in subject_modality_mean_forces[subject].items():
+        exercise, _ = modality.split('_')
+        if exercise in grand_mean_freeweight_forces and grand_mean_freeweight_forces[exercise] > 0:
+            grand_mean = grand_mean_freeweight_forces[exercise]
+            # Normalize and update metrics
+            subject_modality_averages[subject][modality] /= grand_mean
+            subject_modality_peak_forces_0_100[subject][modality] /= grand_mean
+            subject_modality_sticking_region_forces[subject][modality] /= grand_mean
+            subject_modality_mean_forces[subject][modality] /= grand_mean  # Normalizing mean forces for comparison
+
+# Now, metrics in `subject_modality_averages`, `subject_modality_peak_forces_0_100`, `subject_modality_sticking_region_forces`, and `subject_modality_mean_forces`
+# are normalized by the grand mean of the freeweight average force for each exercise.
+
+# After normalization, calculate overall averages and standard deviations for normalized metrics
 for modality in all_exercise_modalities:
-    modality_peak_values = [subject_modality_averages[subject].get(modality, 0) for subject in subject_modality_averages if modality in subject_modality_averages[subject]]
-    valid_peak_values = [v for v in modality_peak_values if v > 0]  # Filter out invalid values
-    overall_modality_peak_averages[modality] = np.mean(valid_peak_values)
-    overall_modality_peak_std_devs[modality] = np.std(valid_peak_values)
+    # Aggregate normalized values for each metric
+    normalized_peak_15_values = [subject_modality_averages[subject][modality] for subject in subject_modality_averages if modality in subject_modality_averages[subject]]
+    normalized_peak_100_values = [subject_modality_peak_forces_0_100[subject][modality] for subject in subject_modality_peak_forces_0_100 if modality in subject_modality_peak_forces_0_100[subject]]
+    normalized_mean_values = [subject_modality_mean_forces[subject][modality] for subject in subject_modality_mean_forces if modality in subject_modality_mean_forces[subject]]
+    normalized_sticking_values = [subject_modality_sticking_region_forces[subject][modality] for subject in subject_modality_sticking_region_forces if modality in subject_modality_sticking_region_forces[subject]]
 
-    # Calculate overall averages and standard deviations for 0-100% peak forces
-    modality_peak_0_100_values = [subject_modality_peak_forces_0_100[subject].get(modality, 0) for subject in subject_modality_peak_forces_0_100 if modality in subject_modality_peak_forces_0_100[subject]]
-    valid_peak_0_100_values = [v for v in modality_peak_0_100_values if v > 0]  # Filter out invalid values
-    overall_modality_peak_0_100_averages[modality] = np.mean(valid_peak_0_100_values)
-    overall_modality_peak_0_100_std_devs[modality] = np.std(valid_peak_0_100_values)
+    # Calculate overall averages and standard deviations for normalized values
+    overall_modality_peak_averages[modality] = np.mean(normalized_peak_15_values) if normalized_peak_15_values else np.nan
+    overall_modality_peak_std_devs[modality] = np.std(normalized_peak_15_values) if normalized_peak_15_values else np.nan
 
-    # Calculate overall averages and standard deviations for mean forces
-    modality_mean_values = [subject_modality_mean_forces[subject].get(modality, 0) for subject in subject_modality_mean_forces if modality in subject_modality_mean_forces[subject]]
-    valid_mean_values = [v for v in modality_mean_values if v > 0]  # Filter out invalid values
-    overall_modality_mean_averages[modality] = np.mean(valid_mean_values)
-    overall_modality_mean_std_devs[modality] = np.std(valid_mean_values)
+    overall_modality_peak_0_100_averages[modality] = np.mean(normalized_peak_100_values) if normalized_peak_100_values else np.nan
+    overall_modality_peak_0_100_std_devs[modality] = np.std(normalized_peak_100_values) if normalized_peak_100_values else np.nan
 
-    # Calculate overall averages and standard deviations for sticking region forces
-    modality_sticking_region_values = [subject_modality_sticking_region_forces[subject].get(modality, 0) for subject in subject_modality_sticking_region_forces if modality in subject_modality_sticking_region_forces[subject]]
-    valid_sticking_region_values = [v for v in modality_sticking_region_values if v > 0]  # Filter out invalid values
-    overall_modality_sticking_region_averages[modality] = np.mean(valid_sticking_region_values)
-    overall_modality_sticking_region_std_devs[modality] = np.std(valid_sticking_region_values)
+    overall_modality_mean_averages[modality] = np.mean(normalized_mean_values) if normalized_mean_values else np.nan
+    overall_modality_mean_std_devs[modality] = np.std(normalized_mean_values) if normalized_mean_values else np.nan
 
-# Print Overall Average Peak Force 0-15%, Peak Force 0-100%, Mean Force, and Sticking Region Force for each modality
-for modality in all_exercise_modalities:
-    peak_average = overall_modality_peak_averages[modality]
-    peak_std_dev = overall_modality_peak_std_devs[modality]
-    peak_0_100_average = overall_modality_peak_0_100_averages[modality]
-    peak_0_100_std_dev = overall_modality_peak_0_100_std_devs[modality]
-    mean_average = overall_modality_mean_averages[modality]
-    mean_std_dev = overall_modality_mean_std_devs[modality]
-    sticking_region_average = overall_modality_sticking_region_averages[modality]
-    sticking_region_std_dev = overall_modality_sticking_region_std_devs[modality]
-    print(f"Overall Average Peak Force 0-15% for {modality}: {peak_average:.2f} N ± {peak_std_dev:.2f}")
-    print(f"Overall Average Peak Force 0-100% for {modality}: {peak_0_100_average:.2f} N ± {peak_0_100_std_dev:.2f}")
-    print(f"Overall Average Mean Force for {modality}: {mean_average:.2f} N ± {mean_std_dev:.2f}")
-    print(f"Overall Average Sticking Region Force 20-60% for {modality}: {sticking_region_average:.2f} N ± {sticking_region_std_dev:.2f}")
+    overall_modality_sticking_region_averages[modality] = np.mean(normalized_sticking_values) if normalized_sticking_values else np.nan
+    overall_modality_sticking_region_std_devs[modality] = np.std(normalized_sticking_values) if normalized_sticking_values else np.nan
+
+    # Print the calculated statistics for normalized values
+    print(f"Normalized Overall Average Peak Force 0-15% for {modality}: {overall_modality_peak_averages[modality]:.2f} N ± {overall_modality_peak_std_devs[modality]:.2f}")
+    print(f"Normalized Overall Average Peak Force 0-100% for {modality}: {overall_modality_peak_0_100_averages[modality]:.2f} N ± {overall_modality_peak_0_100_std_devs[modality]:.2f}")
+    print(f"Normalized Overall Average Mean Force for {modality}: {overall_modality_mean_averages[modality]:.2f} N ± {overall_modality_mean_std_devs[modality]:.2f}")
+    print(f"Normalized Overall Average Sticking Region Force 20-60% for {modality}: {overall_modality_sticking_region_averages[modality]:.2f} N ± {overall_modality_sticking_region_std_devs[modality]:.2f}")
+
 
 from scipy import stats
 
 #T-test for each exercise, metric, and comparison modality
-# Define the exercises and their corresponding resistance types
 exercises = ['bench', 'squat', 'row']
-resistance_types = ['freeweight', 'keiser', 'quantum', 'norse']
-
-# Define the metrics to be compared
-metrics = ['peak_0_15', 'sticking_region', 'mean', 'peak_0_100']
-
-# Define the comparison modalities
 comparison_modalities = ['keiser', 'quantum', 'norse']
 
-# For each exercise
+# Mapping from metric to the corresponding data dictionary
+metric_to_data_dict = {
+    'peak_0_15': subject_modality_averages,  # Assuming this is for peak_0_15, adjust as necessary
+    'sticking_region': subject_modality_sticking_region_forces,
+    'mean': subject_modality_mean_forces,
+    'peak_0_100': subject_modality_peak_forces_0_100
+}
+
 for exercise in exercises:
-    # For each metric
-    for metric in metrics:
-        # Get the freeweight data
-        freeweight_data = [subject_modality_averages[subject].get(f"{exercise}_freeweight", 0) for subject in subject_modality_averages if f"{exercise}_freeweight" in subject_modality_averages[subject]]
-        freeweight_data = [v for v in freeweight_data if v > 0]  # Filter out invalid values
-        print("\nFreeweight data for {exercise}:")  # Print a newline and the exercise
-        print(freeweight_data)  # Print the freeweight data
+    for metric in metric_to_data_dict.keys():
+        # Get the appropriate data dictionary for the current metric
+        data_dict = metric_to_data_dict[metric]
 
-        # For each comparison modality
+        # Get the freeweight data for the current metric
+        freeweight_data = [data_dict[subject].get(f"{exercise}_freeweight", 0) for subject in data_dict if f"{exercise}_freeweight" in data_dict[subject]]
+        freeweight_data = [v for v in freeweight_data if v > 0]
+
+        print(f"\n{metric} data for {exercise} freeweight:")
+        print(freeweight_data)
+
         for comparison_modality in comparison_modalities:
-            # Skip the norse modality for the squat exercise
             if exercise == 'squat' and comparison_modality == 'norse':
-                continue
+                continue  # Skip the norse modality for the squat exercise as before
 
-            # Get the comparison modality data
-            comparison_modality_data = [subject_modality_averages[subject].get(f"{exercise}_{comparison_modality}", 0) for subject in subject_modality_averages if f"{exercise}_{comparison_modality}" in subject_modality_averages[subject]]
-            comparison_modality_data = [v for v in comparison_modality_data if v > 0]  # Filter out invalid values
-            print(f"\n{comparison_modality} data for {exercise}:")  # Print a newline and the comparison modality
-            print(comparison_modality_data)  # Print the comparison modality data
+            # Get the comparison modality data for the current metric
+            comparison_modality_data = [data_dict[subject].get(f"{exercise}_{comparison_modality}", 0) for subject in data_dict if f"{exercise}_{comparison_modality}" in data_dict[subject]]
+            comparison_modality_data = [v for v in comparison_modality_data if v > 0]
+
+            print(f"\n{comparison_modality} data for {exercise} {metric}:")
+            print(comparison_modality_data)
 
             # Perform the t-test
-            t_stat, p_val = stats.ttest_ind(freeweight_data, comparison_modality_data)
+            t_stat, p_val = stats.ttest_ind(freeweight_data, comparison_modality_data, equal_var=False)  # Note: added equal_var=False for Welch's t-test
             significance = "Statistically significant" if p_val < 0.05 else "Not statistically significant"
 
-            # Print the results with 4 decimal places for the p-value
-            print(f"\nT-test results for {exercise}, {metric}, freeweight vs {comparison_modality}: t = {t_stat:.2f}, p = {p_val:.4f} ({significance})\n")
-            print("-" * 50)  # Print a separator
+            # Print the t-test results
+            print(f"T-test results for {exercise}, {metric}, freeweight vs {comparison_modality}: t = {t_stat:.2f}, p = {p_val:.4f} ({significance})")
+            print("-" * 50)
+
+
 
 # Function to calculate mean force curve and peak force in 0-15% range
 def calculate_mean_force_curve(force_data):
@@ -418,6 +429,3 @@ def generate_exercise_pdf(all_data, output_directory, dpi):
             pdf.savefig()  # saves the current figure into a pdf page
             plt.close()
 
-# Call the new function to generate the PDFs
-all_data = {}  # This will contain all the force data for each subject
-generate_exercise_pdf(all_data, output_directory, dpi)
