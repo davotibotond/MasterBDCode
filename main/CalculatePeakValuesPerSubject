@@ -194,6 +194,8 @@ def plot_rep_force_curves(rep_data, output_directory, dpi, exercise_modality, sp
             # Print mean force for each rep
             print(f"Subject {specific_subject}, {exercise_modality}, Rep {rep_number+1}: Mean Force = {mean_force:.2f} N")
 
+
+
         # Calculate and print the average peak force, mean force, and sticking region force
         average_peak_force_15 = np.mean(peak_forces_15)
         average_mean_force = np.mean(mean_forces)
@@ -446,4 +448,57 @@ def generate_exercise_pdf(all_data, output_directory, dpi):
             plt.grid(True)
             pdf.savefig()  # saves the current figure into a pdf page
             plt.close()
+
+# Function to combine and plot squat freeweight mean force curves for subjects 12 and 15
+def plot_combined_squat_force_curves(data_directory, output_directory, dpi, term_mapping, sampling_frequency):
+    subjects = [12, 15]
+    exercise = 'squat'
+    resistance_type = 'freeweight'
+    combined_force_data = []
+
+    for subject_num in subjects:
+        specific_subject = f'subject_{subject_num}'
+        subject_path = os.path.join(data_directory, specific_subject, exercise, resistance_type)
+        force_data = []
+
+        if os.path.exists(subject_path):
+            for file_name in os.listdir(subject_path):
+                if file_name.endswith('.csv'):
+                    file_path = os.path.join(subject_path, file_name)
+                    df = pd.read_csv(file_path, delimiter=';', decimal=",")
+                    processed_df = preprocess_and_select_data(df, term_mapping, sampling_frequency, exercise)
+                    if processed_df is not None:
+                        force_data.append(processed_df['Barbell force (FP)'].values)
+
+            if force_data:
+                # Calculate mean force curve for this subject
+                _, mean_curve = calculate_mean_force_curve(force_data)
+                combined_force_data.append((specific_subject, mean_curve))
+
+    # Plot combined mean force curves for both subjects
+    plt.figure(figsize=(10, 6), dpi=dpi)
+    for subject_data in combined_force_data:
+        specific_subject, mean_curve = subject_data
+        common_positions = np.linspace(0, 100, num=100)
+        plt.plot(common_positions, mean_curve, label=f"Subject {specific_subject.split('_')[-1]}")
+
+    plt.title("Squat Freeweight Force Curves")
+    plt.xlabel("Barbell Position (%)")
+    plt.ylabel("Force (N)")
+    plt.grid(False)
+
+    # Remove top and right spines
+    plt.gca().spines['top'].set_visible(False)
+    plt.gca().spines['right'].set_visible(False)
+
+    # Save the plot into a PDF file
+    pdf_filename = "combined_squat_force_curves_subjects_12_and_15.pdf"
+    pdf_path = os.path.join(output_directory, pdf_filename)
+    with PdfPages(pdf_path) as pdf:
+        pdf.savefig()
+        plt.close()
+
+# Example usage of the function
+plot_combined_squat_force_curves(data_directory, output_directory, dpi, term_mapping, sampling_frequency)
+
 
