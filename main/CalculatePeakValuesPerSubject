@@ -476,7 +476,7 @@ def plot_combined_squat_force_curves(data_directory, output_directory, dpi, term
                 combined_force_data.append((specific_subject, mean_curve))
 
     # Plot combined mean force curves for both subjects
-    plt.figure(figsize=(10, 6), dpi=dpi)
+    plt.figure(figsize=(8, 6), dpi=dpi)
     for subject_data in combined_force_data:
         specific_subject, mean_curve = subject_data
         common_positions = np.linspace(0, 100, num=100)
