@@ -117,18 +117,18 @@ def plot_average_force_curve(rep_data, output_directory, dpi, exercise_modality,
 
     # Calculate and mark peak average force in 0-15% range
     peak_position, peak_average_force_0_15 = calculate_peak_force_0_15(mean_curve, common_positions)
-    plt.scatter(peak_position, peak_average_force_0_15, color='red')
-    plt.annotate(f'{peak_average_force_0_15:.2f} N', (peak_position, peak_average_force_0_15), textcoords="offset points", xytext=(10,-10), ha='center')
+    #plt.scatter(peak_position, peak_average_force_0_15, color='red')
+    #plt.annotate(f'{peak_average_force_0_15:.2f} N', (peak_position, peak_average_force_0_15), textcoords="offset points", xytext=(10,-10), ha='center')
 
     # Calculate and mark lowest average force in 20-60% range
     sticking_position, lowest_average_force_20_60 = calculate_sticking_region_forces(mean_curve, common_positions)
-    plt.scatter(sticking_position, lowest_average_force_20_60, color='red')
-    plt.annotate(f'{lowest_average_force_20_60:.2f} N', (sticking_position, lowest_average_force_20_60), textcoords="offset points", xytext=(10,-10), ha='center')
+    #plt.scatter(sticking_position, lowest_average_force_20_60, color='red')
+    #plt.annotate(f'{lowest_average_force_20_60:.2f} N', (sticking_position, lowest_average_force_20_60), textcoords="offset points", xytext=(10,-10), ha='center')
 
     # Calculate and mark peak average force in 0-100% range
     peak_position, peak_average_force_0_100 = calculate_peak_force_0_100(mean_curve, common_positions)
-    plt.scatter(peak_position, peak_average_force_0_100, color='blue')
-    plt.annotate(f'{peak_average_force_0_100:.2f} N', (peak_position, peak_average_force_0_100), textcoords="offset points", xytext=(10,-10), ha='center')
+    #plt.scatter(peak_position, peak_average_force_0_100, color='blue')
+    #plt.annotate(f'{peak_average_force_0_100:.2f} N', (peak_position, peak_average_force_0_100), textcoords="offset points", xytext=(10,-10), ha='center')
 
     # Additional plot formatting
     plt.title(f"Average Force Curve for {specific_subject} - {exercise_modality}")
