@@ -236,3 +236,42 @@ def generate_combined_pdf(all_data, output_directory, dpi, color_mapping):
 generate_combined_pdf(all_data, output_directory, dpi, color_mapping)
 
 print("Combined PDF generation complete. Check the output directory for the PDFs.")
+
+#--------------------------------------------------------------------------------------------------------------
+
+# Function to generate PDFs with normalized freeweight mean force curves for each exercise, for the presentation
+def generate_normalized_freeweight_pdf(all_data, output_directory, dpi, color_mapping):
+    common_positions = np.linspace(0, 100, num=1000)  # Define common positions for interpolation
+
+    for exercise_name, exercise_data in all_data.items():
+        freeweight_avg_force = calculate_freeweight_avg_force(exercise_data)
+        if freeweight_avg_force is None or freeweight_avg_force == 0:
+            print(f"No valid freeweight data for {exercise_name}, skipping.")
+            continue
+
+        # Calculate the average force curve for freeweight and normalize it
+        if 'freeweight' in exercise_data:
+            normalized_mean_curve = calculate_average_curve(exercise_data['freeweight'], common_positions, freeweight_avg_force)
+
+            # Generate the PDF file
+            pdf_filename = f"{exercise_name}_normalized_freeweight_force_curve.pdf"
+            pdf_path = os.path.join(output_directory, pdf_filename)
+            with PdfPages(pdf_path) as pdf:
+                plt.figure(figsize=(8, 6), dpi=dpi)
+                plt.plot(common_positions, normalized_mean_curve, label='Normalized Freeweight', color=color_mapping['freeweight'])
+                plt.title(f"Normalized Freeweight Mean Force Curve - {exercise_name.capitalize()}")
+                plt.xlabel('Barbell Position (%)')
+                plt.ylabel('Normalized Force (Ratio)')
+                plt.grid(False)
+                
+                # Remove top and right spines
+                plt.gca().spines['top'].set_visible(False)
+                plt.gca().spines['right'].set_visible(False)
+                
+                pdf.savefig()  # saves the current figure into a pdf page
+                plt.close()
+                
+            print(f"Generated normalized freeweight force curve for {exercise_name}.")
+
+# Example usage of the function
+generate_normalized_freeweight_pdf(all_data, output_directory, dpi, color_mapping)
