@@ -218,6 +218,28 @@ subject_modality_mean_forces = {}
 subject_modality_peak_forces_0_100 = {}
 subject_modality_sticking_region_forces = {}
 
+# After collecting data for all modalities, calculate the freeweight baseline for normalization
+freeweight_baselines = {}
+
+# Calculate freeweight baseline for each subject and exercise
+for subject_num in range(1, 16):
+    specific_subject = f'subject_{subject_num}'
+    for exercise in ['bench', 'squat', 'row']:
+        freeweight_path = os.path.join(data_directory, specific_subject, exercise, 'freeweight')
+        rep_forces = []
+        if os.path.exists(freeweight_path):
+            for file_name in os.listdir(freeweight_path):
+                if file_name.endswith('.csv'):
+                    file_path = os.path.join(freeweight_path, file_name)
+                    df = pd.read_csv(file_path, delimiter=';', decimal=",")
+                    processed_df = preprocess_and_select_data(df, term_mapping, sampling_frequency, exercise)
+                    if processed_df is not None:
+                        rep_forces.append(np.mean(processed_df['Barbell force (FP)'].values))
+            if rep_forces:
+                # Key by subject and exercise for specificity
+                freeweight_baselines[(specific_subject, exercise)] = np.mean(rep_forces)
+
+
 for subject_num in range(1, 16):
     specific_subject = f'subject_{subject_num}'
     subject_path = os.path.join(data_directory, specific_subject)
@@ -275,24 +297,20 @@ overall_modality_mean_std_devs = {modality: 0 for modality in all_exercise_modal
 overall_modality_sticking_region_averages = {modality: 0 for modality in all_exercise_modalities}
 overall_modality_sticking_region_std_devs = {modality: 0 for modality in all_exercise_modalities}
 
-# Set grand mean of freeweight average force for each exercise
-grand_mean_freeweight_forces = {
-    'bench': 683,
-    'squat': 1807,
-    'row': 605
-}
 
-# Normalize metrics by the corresponding freeweight grand mean
+
+# Normalize metrics for each modality by the subject's corresponding freeweight performance
 for subject in subject_modality_mean_forces:
-    for modality, mean_force in subject_modality_mean_forces[subject].items():
-        exercise, _ = modality.split('_')
-        if exercise in grand_mean_freeweight_forces and grand_mean_freeweight_forces[exercise] > 0:
-            grand_mean = grand_mean_freeweight_forces[exercise]
-            # Normalize and update metrics
-            subject_modality_averages[subject][modality] /= grand_mean
-            subject_modality_peak_forces_0_100[subject][modality] /= grand_mean
-            subject_modality_sticking_region_forces[subject][modality] /= grand_mean
-            subject_modality_mean_forces[subject][modality] /= grand_mean  # Normalizing mean forces for comparison
+    for modality in subject_modality_mean_forces[subject]:
+        exercise = modality.split('_')[0]  # Extract the exercise part of the modality
+        baseline_key = (subject, exercise)
+        if baseline_key in freeweight_baselines and freeweight_baselines[baseline_key] > 0:
+            normalization_factor = freeweight_baselines[baseline_key]
+            # Normalize by the freeweight baseline
+            subject_modality_mean_forces[subject][modality] /= normalization_factor
+            subject_modality_averages[subject][modality] /= normalization_factor
+            subject_modality_peak_forces_0_100[subject][modality] /= normalization_factor
+            subject_modality_sticking_region_forces[subject][modality] /= normalization_factor
 
 # Now, metrics in `subject_modality_averages`, `subject_modality_peak_forces_0_100`, `subject_modality_sticking_region_forces`, and `subject_modality_mean_forces`
 # are normalized by the grand mean of the freeweight average force for each exercise.
