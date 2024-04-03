@@ -193,6 +193,10 @@ def generate_combined_pdf(all_data, output_directory, dpi, color_mapping):
                     # Perform SPM t-test using the normalized data
                     t = spm1d.stats.ttest2(data1_all, data2_all, equal_var=True).inference(alpha=0.05)
 
+                    # Print the start and end positions and p-value of each cluster
+                    for cluster in t.clusters:
+                        print(f"Cluster from {cluster.endpoints[0]}% to {cluster.endpoints[1]}%, p-value: {cluster.P}")
+
                     # Plot mean force curves with shaded standard deviation
                     ax_mfc = axs[0, i]
                     ax_mfc.set_title(f'Force {pair[0].capitalize()} vs {pair[1].capitalize()}')
