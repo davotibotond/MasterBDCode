@@ -1,0 +1,126 @@
+import cv2
+import mediapipe as mp
+import numpy as np
+import matplotlib.pyplot as plt
+
+# Initialize MediaPipe Pose
+mp_pose = mp.solutions.pose
+pose = mp_pose.Pose(static_image_mode=False, model_complexity=2)
+
+# Function to calculate the distance between two points
+def calculate_distance(point1, point2):
+    return np.linalg.norm(np.array(point1) - np.array(point2))
+
+# Function to analyze a video and display moment arms
+def analyze_video(input_video_path, output_video_path):
+    cap = cv2.VideoCapture(input_video_path)
+    
+    # Get video properties
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # Codec for the output video
+    fps = int(cap.get(cv2.CAP_PROP_FPS))  # Frames per second
+    width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))  # Frame width
+    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))  # Frame height
+    
+    # Initialize the VideoWriter object
+    out = cv2.VideoWriter(output_video_path, fourcc, fps, (width, height))
+    
+    while cap.isOpened():
+        ret, frame = cap.read()
+        if not ret:
+            break
+        
+        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        results = pose.process(frame_rgb)
+        
+        if results.pose_landmarks:
+            landmarks = results.pose_landmarks.landmark
+            
+            # Check if the left hip of the athlete is on the right half of the frame
+            if landmarks[mp_pose.PoseLandmark.LEFT_HIP.value].x > 0.5:
+                
+                # Extract necessary landmarks for left leg
+                left_hip = landmarks[mp_pose.PoseLandmark.LEFT_HIP.value]
+                left_knee = landmarks[mp_pose.PoseLandmark.LEFT_KNEE.value]
+                left_ankle = landmarks[mp_pose.PoseLandmark.LEFT_ANKLE.value]
+                
+                left_hip_point = (int(left_hip.x * frame.shape[1]), int(left_hip.y * frame.shape[0]))
+                left_knee_point = (int(left_knee.x * frame.shape[1]), int(left_knee.y * frame.shape[0]))
+                left_ankle_point = (int(left_ankle.x * frame.shape[1]), int(left_ankle.y * frame.shape[0]))
+                
+                # Calculate moment arms for left leg
+                left_thigh_length = calculate_distance(left_hip_point, left_knee_point)
+                left_calf_length = calculate_distance(left_knee_point, left_ankle_point)
+                
+                # Draw landmarks and lines for left leg
+                cv2.circle(frame, left_hip_point, 5, (255, 0, 0), -1)
+                cv2.circle(frame, left_knee_point, 5, (0, 255, 0), -1)
+                cv2.circle(frame, left_ankle_point, 5, (0, 0, 255), -1)
+                cv2.line(frame, left_hip_point, left_knee_point, (255, 255, 0), 2)
+                cv2.line(frame, left_knee_point, left_ankle_point, (255, 255, 0), 2)
+                
+                # Display the moment arms for left leg
+                cv2.putText(frame, f'Left Thigh Length: {left_thigh_length:.2f}', (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
+                cv2.putText(frame, f'Left Calf Length: {left_calf_length:.2f}', (50, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
+                
+                # Extract necessary landmarks for right leg
+                right_hip = landmarks[mp_pose.PoseLandmark.RIGHT_HIP.value]
+                right_knee = landmarks[mp_pose.PoseLandmark.RIGHT_KNEE.value]
+                right_ankle = landmarks[mp_pose.PoseLandmark.RIGHT_ANKLE.value]
+                
+                right_hip_point = (int(right_hip.x * frame.shape[1]), int(right_hip.y * frame.shape[0]))
+                right_knee_point = (int(right_knee.x * frame.shape[1]), int(right_knee.y * frame.shape[0]))
+                right_ankle_point = (int(right_ankle.x * frame.shape[1]), int(right_ankle.y * frame.shape[0]))
+                
+                # Calculate moment arms for right leg
+                right_thigh_length = calculate_distance(right_hip_point, right_knee_point)
+                right_calf_length = calculate_distance(right_knee_point, right_ankle_point)
+                
+                # Draw landmarks and lines for right leg
+                cv2.circle(frame, right_hip_point, 5, (255, 0, 0), -1)
+                cv2.circle(frame, right_knee_point, 5, (0, 255, 0), -1)
+                cv2.circle(frame, right_ankle_point, 5, (0, 0, 255), -1)
+                cv2.line(frame, right_hip_point, right_knee_point, (255, 255, 0), 2)
+                cv2.line(frame, right_knee_point, right_ankle_point, (255, 255, 0), 2)
+                
+                # Display the moment arms for right leg
+                cv2.putText(frame, f'Right Thigh Length: {right_thigh_length:.2f}', (50, 150), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
+                cv2.putText(frame, f'Right Calf Length: {right_calf_length:.2f}', (50, 200), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
+                
+                # Determine which joint has the most mechanical load (longest moment arm)
+                max_moment_arm = max(left_thigh_length, left_calf_length, right_thigh_length, right_calf_length)
+                if max_moment_arm == left_thigh_length:
+                    load_joint = 'Left Hip'
+                    load_position = left_hip_point
+                elif max_moment_arm == left_calf_length:
+                    load_joint = 'Left Knee'
+                    load_position = left_knee_point
+                elif max_moment_arm == right_thigh_length:
+                    load_joint = 'Right Hip'
+                    load_position = right_hip_point
+                else:
+                    load_joint = 'Right Knee'
+                    load_position = right_knee_point
+                
+                # Highlight the joint with the most mechanical load
+                cv2.putText(frame, f'Most Load: {load_joint}', (load_position[0], load_position[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv2.LINE_AA)
+                cv2.circle(frame, load_position, 10, (0, 0, 255), 3)
+        
+        # Write the frame to the output video file
+        out.write(frame)
+        
+        # Display the frame
+        cv2.imshow('Video Analysis', frame)
+        
+        if cv2.waitKey(10) & 0xFF == ord('q'):
+            break
+    
+    cap.release()
+    out.release()
+    cv2.destroyAllWindows()
+
+# Path to your input video file
+input_video_path = '/Users/botonddavoti/Downloads/test.MOV'
+# Path to your output video file
+output_video_path = '/Users/botonddavoti/Downloads/analyzed_test.MOV'
+analyze_video(input_video_path, output_video_path)
+
