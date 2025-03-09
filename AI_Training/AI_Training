@@ -1,0 +1,191 @@
+import pandas as pd
+import os
+import joblib
+from sklearn.ensemble import RandomForestRegressor
+
+# Define file names
+csv_file = "training_log.csv"
+model_file = "trained_ai_model.pkl"
+
+# Expected columns for CSV structure consistency
+expected_columns = ["Date", "Exercise", "Set", "Weight (kg)", "Reps", "RPE", 
+                    "Daily Shape", "Sleep (hrs)", "Stress (1-10)", "Session RPE", 
+                    "Next Session Days", "Next Sets", "Next Reps", "Next Goal Weight (kg)"]
+
+# Step 1: Log Training Data in CSV
+def log_training_session():
+    """Logs a new training session into a CSV file with structured data."""
+    # Collect session-wide metrics (recorded once)
+    date = input("Enter date (YYYY-MM-DD): ")
+    exercise = input("Enter exercise: ")
+    daily_shape = float(input("Enter daily shape (1-10): "))
+    sleep = float(input("Enter sleep hours: "))
+    stress = float(input("Enter stress level (1-10): "))
+
+    # Get number of sets
+    sets = int(input("Enter number of sets: "))
+
+    # Initialize list for multiple set entries
+    session_data_list = []
+
+    for set_num in range(1, sets + 1):
+        print(f"\n💪 Logging Set {set_num}...")
+        weight = float(input(f"Enter weight (kg) for Set {set_num}: "))
+        reps = int(input(f"Enter number of reps for Set {set_num}: "))
+        rpe = float(input(f"Enter RPE (1-10) for Set {set_num}: "))
+
+        # Append set-specific data and repeat session-wide values
+        session_data_list.append({
+            "Date": date,
+            "Exercise": exercise,
+            "Set": set_num,
+            "Weight (kg)": weight,
+            "Reps": reps,
+            "RPE": rpe,
+            "Daily Shape": daily_shape,  # Repeated
+            "Sleep (hrs)": sleep,  # Repeated
+            "Stress (1-10)": stress,  # Repeated
+            "Session RPE": None,  # To be added after all sets are logged
+            "Next Session Days": None,  # To be added after all sets are logged
+            "Next Sets": None,
+            "Next Reps": None,
+            "Next Goal Weight (kg)": None
+        })
+
+    # Ask for session RPE (only once, after logging all sets)
+    session_rpe = float(input("\nEnter overall Session RPE (1-10): "))
+    for entry in session_data_list:
+        entry["Session RPE"] = session_rpe  # Apply to all rows for consistency
+
+    # Ask for next session details (only once)
+    next_session_days = int(input("\nEnter number of days until next session: "))
+    next_sets = int(input("Enter planned sets for next session: "))
+    next_reps = int(input("Enter planned reps for next session: "))
+    next_goal_weight = float(input("Enter goal weight (kg) for next session: "))
+
+    # Apply next session details to all rows for consistency
+    for entry in session_data_list:
+        entry["Next Session Days"] = next_session_days
+        entry["Next Sets"] = next_sets
+        entry["Next Reps"] = next_reps
+        entry["Next Goal Weight (kg)"] = next_goal_weight
+
+    # Convert to DataFrame
+    new_data = pd.DataFrame(session_data_list)
+
+    # Ensure all expected columns exist
+    for col in expected_columns:
+        if col not in new_data.columns:
+            new_data[col] = None  # Fill missing values
+
+    # Append to CSV file
+    if os.path.exists(csv_file):
+        new_data.to_csv(csv_file, mode='a', header=False, index=False)
+    else:
+        new_data.to_csv(csv_file, index=False)
+
+    print("\n✅ Training session logged successfully!")
+
+# Step 2: Validate CSV and Fix Structure
+def clean_csv():
+    """Cleans CSV file by ensuring all rows have the correct number of columns."""
+    if not os.path.exists(csv_file):
+        print("\n⚠ CSV file not found. Creating a new one.")
+        pd.DataFrame(columns=expected_columns).to_csv(csv_file, index=False)
+        return
+
+    try:
+        df = pd.read_csv(csv_file, on_bad_lines="skip")  # Skip corrupted lines
+
+        # Ensure all expected columns exist, including Exercise
+        for col in expected_columns:
+            if col not in df.columns:
+                df[col] = None  # Fill missing columns
+
+        df.ffill(inplace=True)  # Fill missing session-wide data
+        df.to_csv(csv_file, index=False)  # Save cleaned file
+        print("\n✅ CSV file cleaned and formatted correctly!")
+    except Exception as e:
+        print("\n⚠ Error cleaning CSV file:", e)
+
+# Step 3: Train AI Model
+def train_ai_model():
+    """Trains a simple AI model using past training data from CSV."""
+    clean_csv()  # Ensure CSV is valid before training
+
+    try:
+        df = pd.read_csv(csv_file)
+
+        # Ensure Exercise column exists before one-hot encoding
+        if "Exercise" not in df.columns:
+            print("\n⚠ Error: 'Exercise' column missing in CSV.")
+            return
+
+        # Convert categorical variables (Exercise) into numeric using one-hot encoding
+        df = pd.get_dummies(df, columns=["Exercise"])
+
+        # Define Features & Target Variable
+        features = [col for col in df.columns if col not in ["Date", "Recommended Load Change"]]
+
+        if "Recommended Load Change" not in df.columns:
+            df["Recommended Load Change"] = 0  # Dummy value for first-time training
+
+        X = df[features]
+        y = df["Recommended Load Change"]
+
+        # Train the model
+        model = RandomForestRegressor()
+        model.fit(X, y)
+
+        # Save the trained model
+        joblib.dump(model, model_file)
+        print("\n✅ AI Model Trained & Saved!")
+
+    except Exception as e:
+        print("\n⚠ Error training AI model:", e)
+
+# Step 4: Predict Adjustments
+def predict_adjustment():
+    """Uses AI to predict next session's weight/load adjustment."""
+    if not os.path.exists(model_file):
+        print("\n⚠ No trained AI model found! Training now...")
+        train_ai_model()
+
+    try:
+        model = joblib.load(model_file)  # Load AI Model
+        df = pd.read_csv(csv_file)
+
+        # Ensure Exercise column exists before one-hot encoding
+        if "Exercise" not in df.columns:
+            print("\n⚠ Error: 'Exercise' column missing in CSV.")
+            return
+
+        # Get latest session
+        latest_session = df[df["Date"] == df["Date"].iloc[-1]]
+
+        # Convert categorical variables (Exercise) into numeric using one-hot encoding
+        latest_session = pd.get_dummies(latest_session, columns=["Exercise"])
+
+        # Ensure missing columns from training are present
+        model_features = joblib.load(model_file).feature_names_in_
+        for col in model_features:
+            if col not in latest_session.columns:
+                latest_session[col] = 0  # Add missing columns
+
+        # Keep only model features
+        latest_session = latest_session[model_features]
+
+        # Predict adjustment per set
+        predicted_adjustments = model.predict(latest_session)
+        latest_session["Predicted Adjustment"] = predicted_adjustments
+
+        print("\n🔹 Suggested weight adjustments per set:\n", latest_session[["Set", "Weight (kg)", "Next Goal Weight (kg)", "Predicted Adjustment"]])
+
+    except Exception as e:
+        print("\n⚠ Error in AI prediction:", e)
+
+# Run Logging, Cleaning, Training, and Prediction
+log_training_session()
+clean_csv()
+train_ai_model()
+predict_adjustment()
